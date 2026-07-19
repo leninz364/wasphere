@@ -1,8 +1,8 @@
-<h1 align="center">WaSphere</h1>
+<h1 align="center">WaSphere — Open Source WhatsApp API, Self-Hosted</h1>
 
 <p align="center">
-  <strong>The self-hosted, open-source WhatsApp API platform.</strong><br/>
-  Multi-session · multi-webhook · developer-first · MIT licensed.
+  <strong>Run your own WhatsApp API on your own server. Multi-session, real-time inbox, signed webhooks. MIT licensed.</strong><br/>
+  A self-hosted alternative to paid WhatsApp API providers — no per-message fees, no vendor lock-in.
 </p>
 
 <p align="center">
@@ -16,7 +16,7 @@
 
 <p align="center">
   <a href="https://github.com/wasphere/wasphere/actions/workflows/ci.yml"><img src="https://github.com/wasphere/wasphere/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
-  <img src="https://img.shields.io/badge/version-1.1.0-10b981.svg" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-1.3.0-10b981.svg" alt="Version"/>
   <img src="https://img.shields.io/badge/license-MIT-10b981.svg" alt="License"/>
   <img src="https://img.shields.io/badge/Node.js-20%2B-brightgreen.svg" alt="Node"/>
   <img src="https://img.shields.io/badge/NestJS-10.x-E0234E.svg" alt="NestJS"/>
@@ -55,6 +55,28 @@
 | 🐳 **One-command Docker**    | `docker compose up -d` brings up the whole stack with auto-migrations.              |
 
 👉 **Try it live (seeded demo, no signup): [demo.wasphere.com](https://demo.wasphere.com)**
+
+### Coming from another WhatsApp library?
+
+Plenty of good open-source projects already talk to WhatsApp — [Baileys](https://github.com/WhiskeySockets/Baileys),
+Evolution API, WPPConnect, Venom, WAHA. Most of them hand you a **library or a bare REST
+wrapper**, and you build the product around it: the dashboard, the inbox, the auth, the
+webhook retries, the database.
+
+WaSphere is the part you would have had to build. Sessions, a real-time inbox, teams and
+roles, scoped API keys, signed webhooks with backoff, and a contact book — already there,
+in one `docker compose up`, under MIT.
+
+If you only need to send a message from a script, use Baileys directly; it is excellent and
+WaSphere builds on it. If you need something a team can operate, start here.
+
+### 🇧🇷 Português
+
+WaSphere é uma **API de WhatsApp open source e self-hosted** — uma alternativa ao
+Evolution API, WPPConnect e Venom, com painel próprio, inbox em tempo real, permissões por
+função e webhooks assinados. Licença MIT, sem taxa por mensagem, roda no seu servidor com
+`docker compose up`. A [documentação](https://wasphere.com/docs) e a
+[demo ao vivo](https://demo.wasphere.com) estão disponíveis.
 
 ---
 
@@ -343,19 +365,19 @@ wasphere/
 | --- | --- | --- |
 | **v1.0** | Foundation — WhatsApp API platform (multi-session, 14 send types, webhooks, scoped API keys, dashboard) | ✅ shipped |
 | **v1.1** | **Inbox** — realtime inbox: send/receive media, polls + decrypted votes, reactions, tags/notes, multi-session ([notes](CHANGELOG.md)) | ✅ shipped |
-| **v1.2** | **Reliability & Trust** — **Meta Cloud API** as an alternative backend (per-session provider choice + Baileys→Meta auto-failover) · inbox polish (streaming media, location/contact-card previews, poll-resolve helper) · browser notifications | 🚧 in progress |
-| **v1.3** | Team & Multi-agent — assign conversations, agent roles, internal notes & @mentions | planned |
+| **v1.2** | **Reliability & Trust** — **Meta Cloud API** as an alternative backend (per-session provider choice + opt-in failover) · anti-ban session controls (4–12s human-like delay, per-minute cap) · update notifications · workspace logo | ✅ shipped |
+| **v1.3** | **Inbox CRM** — two-way inbox with delivery/read ticks · team invites (Owner/Admin/Agent) · custom roles with backend-enforced capabilities · contact book (tags, notes, CSV export) · Meta template send ([notes](CHANGELOG.md)) | ✅ shipped |
 | **v1.5** | Platform — MySQL / SQLite support, multiple workspaces per deployment, basic AI replies | planned |
 | **v2.0** | Mature Core | planned |
 
-> 🎯 **v1.2 makes WaSphere the only MIT-licensed, self-hostable WhatsApp platform that runs *both* Baileys (unofficial) and the official **Meta Cloud API** behind one unified, per-session API.** Intelligent routing, cost optimization and the Shopify/WooCommerce integrations are part of WaSphere Pro.
+> 🎯 **WaSphere is the only MIT-licensed, self-hostable WhatsApp platform that runs *both* Baileys (unofficial) and the official **Meta Cloud API** behind one unified, per-session API** — shipped in v1.2. Intelligent routing, cost optimization and the Shopify/WooCommerce integrations are part of WaSphere Pro.
 
 ### 💼 Commercial products (paid · closed-source · built on the Core)
 
 These run **on top of** WaSphere Core and are developed separately — the Core stays MIT and self-hostable on its own.
 
-- **WaSphere for Shopify** — WhatsApp order confirmation, abandoned-cart and shipping flows *(after v1.2)*
-- **WaSphere for WooCommerce** *(after Shopify)*
+- **WaSphere for Shopify** — WhatsApp order confirmation, abandoned-cart and shipping flows
+- **WaSphere for WooCommerce**
 - **WaSphere for WHMCS** — billing & client notifications
 - **WaSphere Pro (hosted SaaS)** — fully managed cloud, no self-hosting
 
