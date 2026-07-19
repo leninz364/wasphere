@@ -101,7 +101,7 @@ WaSphere is two cleanly separated services so the GPL-licensed WhatsApp engine s
 
 ## 🎯 Features
 
-### 📥 Inbox — *new in v1.1*
+### 📥 Inbox — *team inbox since v1.3*
 
 A realtime, two-pane WhatsApp **Inbox** right in your dashboard — send, receive, and manage conversations without leaving WaSphere.
 
@@ -126,7 +126,7 @@ A realtime, two-pane WhatsApp **Inbox** right in your dashboard — send, receiv
   <img src="packages/dashboard-ui/public/screenshots/inbox-mobile.png" alt="WaSphere Inbox — mobile view with media" width="27%"/>
 </p>
 
-> 📖 Full v1.1 release notes: [CHANGELOG → 1.1.0](CHANGELOG.md) · try it live: **[demo.wasphere.com](https://demo.wasphere.com)**
+> 📖 Full release notes: [CHANGELOG](CHANGELOG.md) · try it live: **[demo.wasphere.com](https://demo.wasphere.com)**
 
 ### Core
 
