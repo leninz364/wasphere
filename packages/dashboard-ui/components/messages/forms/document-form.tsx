@@ -64,9 +64,9 @@ export function DocumentForm({ onSubmit, submitting }: FormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const errs: Record<string, string> = {}
-    if (!url.trim()) errs.url = "Document URL or file is required."
-    if (!fileName.trim()) errs.fileName = "File name is required."
-    if (!mimetype.trim()) errs.mimetype = "MIME type is required."
+    if (!url.trim()) errs.url = "Se requiere una URL o archivo de documento."
+    if (!fileName.trim()) errs.fileName = "El nombre del archivo es obligatorio."
+    if (!mimetype.trim()) errs.mimetype = "El tipo MIME es obligatorio."
     if (Object.keys(errs).length > 0) { setErrors(errs); return }
     setErrors({})
     await onSubmit({ url: url.trim(), fileName: fileName.trim(), mimetype: mimetype.trim() })
@@ -75,13 +75,13 @@ export function DocumentForm({ onSubmit, submitting }: FormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex items-center justify-between pb-1">
-        <span className="text-xs text-muted-foreground">Fill in the fields below</span>
+        <span className="text-xs text-muted-foreground">Completa los campos a continuación</span>
         <Button type="button" size="xs" variant="outline" onClick={fillSample}>
-          Fill Sample
+          Rellenar ejemplo
         </Button>
       </div>
       <MediaInput
-        id="doc-url" label="Document" value={url}
+        id="doc-url" label="Documento" value={url}
         onChange={handleUrlChange}
         onFileSelected={handleFileSelected}
         accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,application/*,text/*"
@@ -90,20 +90,20 @@ export function DocumentForm({ onSubmit, submitting }: FormProps) {
       />
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="doc-filename">File Name</Label>
-          <Input id="doc-filename" placeholder="report.pdf" value={fileName}
+          <Label htmlFor="doc-filename">Nombre del archivo</Label>
+          <Input id="doc-filename" placeholder="reporte.pdf" value={fileName}
             onChange={(e) => setFileName(e.target.value)} />
           {errors.fileName && <p className="text-xs text-destructive">{errors.fileName}</p>}
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="doc-mimetype">MIME Type</Label>
+          <Label htmlFor="doc-mimetype">Tipo MIME</Label>
           <Input id="doc-mimetype" placeholder="application/pdf" value={mimetype}
             onChange={(e) => setMimetype(e.target.value)} />
           {errors.mimetype && <p className="text-xs text-destructive">{errors.mimetype}</p>}
         </div>
       </div>
       <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Sending…" : "Send Message"}
+        {submitting ? "Enviando…" : "Enviar mensaje"}
       </Button>
     </form>
   )

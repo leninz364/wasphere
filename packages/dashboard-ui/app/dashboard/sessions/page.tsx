@@ -51,7 +51,7 @@ export default async function SessionsPage() {
           <h1 className="text-2xl font-semibold text-foreground">Sessions</h1>
           <p className="text-sm text-zinc-700 dark:text-zinc-300">Manage WhatsApp sessions connected to this workspace.</p>
         </div>
-        <ApiError message="Could not load sessions. Check your WA Server connection in Settings." />
+        <ApiError message="No se pudieron cargar las sesiones. Revisa la conexión al servidor WA en Configuración." />
       </div>
     )
   }
@@ -59,8 +59,8 @@ export default async function SessionsPage() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold text-foreground">Sessions</h1>
-        <p className="text-sm text-zinc-700 dark:text-zinc-300">Manage WhatsApp sessions connected to this workspace.</p>
+        <h1 className="text-2xl font-semibold text-foreground">Sesiones</h1>
+        <p className="text-sm text-zinc-700 dark:text-zinc-300">Administra las sesiones de WhatsApp conectadas a este espacio de trabajo.</p>
       </div>
       <SessionsTable initialSessions={sessions} />
       <AntiBanControls sessions={sessions as SessionSummary[]} />

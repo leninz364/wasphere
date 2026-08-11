@@ -11,6 +11,7 @@ import { AnimatedStatCard } from "@/components/overview/animated-stat-card"
 import { AnimatedBarChart } from "@/components/overview/animated-bar-chart"
 import { DonutChart } from "@/components/overview/donut-chart"
 import { ActivityFeed, type ActivityItem } from "@/components/overview/activity-feed"
+import { AgentWorkCard } from "@/components/team/agent-work-card"
 
 import { serverGet } from "@/lib/server-fetch"
 
@@ -80,10 +81,10 @@ export default async function OverviewPage() {
   if (workspaces.length === 0) {
     return (
       <div className="flex flex-col gap-4">
-        <h1 className="text-2xl font-semibold text-foreground">Overview</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Resumen</h1>
         <div className="rounded-xl border bg-muted/30 px-6 py-10 text-center">
-          <p className="text-base font-medium text-foreground">No workspace configured</p>
-          <p className="text-sm text-zinc-400 mt-1">Create a workspace to get started.</p>
+          <p className="text-base font-medium text-foreground">Sin espacio de trabajo configurado</p>
+          <p className="text-sm text-zinc-400 mt-1">Crea un espacio de trabajo para comenzar.</p>
         </div>
       </div>
     )
@@ -124,10 +125,10 @@ export default async function OverviewPage() {
         : "neutral"
   const trendLabel =
     trend24h === "up"
-      ? `↑ +${diff} from yesterday`
+      ? `↑ +${diff} respecto a ayer`
       : trend24h === "down"
-        ? `↓ ${diff} fewer than yesterday`
-        : "Same as yesterday"
+        ? `↓ ${diff} menos que ayer`
+        : "Igual que ayer"
 
   // Donut chart data (top 6 by type)
   const byTypeEntries = stats
@@ -154,7 +155,7 @@ export default async function OverviewPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">{workspace.name}</h1>
-          <p className="text-sm text-zinc-700 dark:text-zinc-300">Workspace overview</p>
+          <p className="text-sm text-zinc-700 dark:text-zinc-300">Resumen del espacio de trabajo</p>
         </div>
         {workspace.waServerConfigured && (
           <span
@@ -173,7 +174,7 @@ export default async function OverviewPage() {
                   : "bg-red-500",
               )}
             />
-            WA Server: {serverOnline ? "Online" : "Offline"}
+            Servidor WA: {serverOnline ? "En línea" : "Desconectado"}
           </span>
         )}
       </div>
@@ -183,14 +184,14 @@ export default async function OverviewPage() {
         <Card className="border-amber-400/30 bg-amber-50/50 dark:bg-amber-900/10">
           <CardContent className="pt-4">
             <p className="text-sm text-amber-800 dark:text-amber-300">
-              WA Server not configured.{" "}
+              Servidor WA no configurado.{" "}
               <Link
                 href="/dashboard/settings"
                 className="font-medium underline underline-offset-2"
               >
-                Go to Settings
+                Ve a Configuración
               </Link>{" "}
-              to add your server URL and token.
+              para agregar la URL y el token de tu servidor.
             </p>
           </CardContent>
         </Card>
@@ -199,14 +200,14 @@ export default async function OverviewPage() {
       {/* Row 1 — 4 metric cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <AnimatedStatCard
-          title="Sessions"
+          title="Sesiones"
           value={`${connected} / ${total}`}
-          sub={`${qrPending} pending · ${offline} offline`}
+          sub={`${qrPending} pendientes · ${offline} desconectadas`}
           trend="neutral"
           icon={<Smartphone className={ICON_CLASS} />}
         />
         <AnimatedStatCard
-          title="Messages (24h)"
+          title="Mensajes (24h)"
           value={stats ? stats.messages24h.count.toLocaleString() : "—"}
           targetCount={stats?.messages24h.count}
           sub={stats ? trendLabel : undefined}
@@ -215,11 +216,11 @@ export default async function OverviewPage() {
           sparkline={sparkline7d.length >= 2 ? sparkline7d : undefined}
         />
         <AnimatedStatCard
-          title="Success Rate"
+          title="Tasa de éxito"
           value={stats ? `${stats.successRate24h.percentage}%` : "—"}
           targetCount={stats?.successRate24h.percentage}
           suffix="%"
-          sub={stats ? `${stats.successRate24h.failed} failed today` : undefined}
+          sub={stats ? `${stats.successRate24h.failed} fallidos hoy` : undefined}
           trend={
             stats
               ? stats.successRate24h.percentage >= 95
@@ -232,12 +233,12 @@ export default async function OverviewPage() {
           icon={<ShieldCheck className={ICON_CLASS} />}
         />
         <AnimatedStatCard
-          title="Events Today"
+          title="Eventos de hoy"
           value={stats ? stats.eventsToday.count.toLocaleString() : "—"}
           targetCount={stats?.eventsToday.count}
           sub={
             stats
-              ? `across ${Object.keys(stats.eventsToday.byType).length} types`
+              ? `en ${Object.keys(stats.eventsToday.byType).length} tipos`
               : undefined
           }
           trend="neutral"
@@ -245,20 +246,23 @@ export default async function OverviewPage() {
         />
       </div>
 
+      {/* Agent performance — response times, chats attended & solved */}
+      <AgentWorkCard />
+
       {/* Error banners */}
       {sessions === null && workspace.waServerConfigured && (
-        <ApiError message="Could not load session data. Check your WA Server connection in Settings." />
+        <ApiError message="No se pudieron cargar las sesiones. Revisa la conexión al servidor WA en Configuración." />
       )}
       {stats === null && (
-        <ApiError message="Could not load stats data. The dashboard API may be unavailable." />
+        <ApiError message="No se pudieron cargar las estadísticas. La API del panel puede no estar disponible." />
       )}
 
       {/* Empty state for new workspaces */}
       {allZero && (
         <div className="rounded-xl border bg-muted/30 px-6 py-10 text-center">
-          <p className="text-base font-medium text-foreground">No activity yet</p>
+          <p className="text-base font-medium text-foreground">Aún no hay actividad</p>
           <p className="text-sm text-zinc-400 mt-1">
-            Send your first message to populate this dashboard.
+            Envía tu primer mensaje para llenar este panel.
           </p>
         </div>
       )}
@@ -270,10 +274,10 @@ export default async function OverviewPage() {
             <div className="flex items-center gap-2">
               <BarChart2 size={16} className="text-primary" />
               <CardTitle className="text-base font-medium text-foreground">
-                Messages — Last 7 Days
+                Mensajes — últimos 7 días
               </CardTitle>
             </div>
-            <p className="text-xs text-zinc-400 font-light">Daily message volume</p>
+            <p className="text-xs text-zinc-400 font-light">Volumen diario de mensajes</p>
           </CardHeader>
           <CardContent>
             <AnimatedBarChart data={stats.messages7d} />
@@ -289,10 +293,10 @@ export default async function OverviewPage() {
               <div className="flex items-center gap-2">
                 <ActivitySquare size={16} className="text-primary" />
                 <CardTitle className="text-base font-medium text-foreground">
-                  By Message Type
+                  Por tipo de mensaje
                 </CardTitle>
               </div>
-              <p className="text-xs text-zinc-400 font-light">Top 6 types sent today</p>
+              <p className="text-xs text-zinc-400 font-light">Los 6 tipos más enviados hoy</p>
             </CardHeader>
             <CardContent>
               <DonutChart data={byTypeEntries} />
@@ -304,10 +308,10 @@ export default async function OverviewPage() {
               <div className="flex items-center gap-2">
                 <Zap size={16} className="text-primary" />
                 <CardTitle className="text-base font-medium text-foreground">
-                  Recent Activity
+                  Actividad reciente
                 </CardTitle>
               </div>
-              <p className="text-xs text-zinc-400 font-light">Last 8 API requests</p>
+              <p className="text-xs text-zinc-400 font-light">Últimas 8 solicitudes a la API</p>
             </CardHeader>
             <CardContent className="pb-2">
               <ActivityFeed items={recentActivity} />
@@ -322,9 +326,9 @@ export default async function OverviewPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-medium text-foreground">
-                By Message Type
+                Por tipo de mensaje
               </CardTitle>
-              <p className="text-xs text-zinc-500">Top 6 types sent today</p>
+              <p className="text-xs text-zinc-500">Los 6 tipos más enviados hoy</p>
             </CardHeader>
             <CardContent>
               <DonutChart data={[]} />
@@ -333,9 +337,9 @@ export default async function OverviewPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-medium text-foreground">
-                Recent Activity
+                Actividad reciente
               </CardTitle>
-              <p className="text-xs text-zinc-500">Last 8 API requests</p>
+              <p className="text-xs text-zinc-500">Últimas 8 solicitudes a la API</p>
             </CardHeader>
             <CardContent className="pb-2">
               <ActivityFeed items={[]} />

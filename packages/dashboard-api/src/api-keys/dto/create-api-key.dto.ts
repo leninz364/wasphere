@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
-  IsDateString,
   IsOptional,
   IsString,
   MaxLength,
@@ -30,12 +29,4 @@ export class CreateApiKeyDto {
   @IsString()
   @IsOptional()
   sessionId?: string;
-
-  @ApiPropertyOptional({
-    example: '2027-01-01T00:00:00Z',
-    description: 'Key expiry as ISO 8601 date-time string.',
-  })
-  @IsDateString()
-  @IsOptional()
-  expiresAt?: string;
 }

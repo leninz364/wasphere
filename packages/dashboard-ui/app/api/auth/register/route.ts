@@ -1,7 +1,7 @@
 import { cookies } from "next/headers"
+import { setAuthCookies } from "@/lib/auth-cookies"
 
 const API_BASE = process.env.DASHBOARD_API_URL ?? "http://localhost:3000"
-const SECURE = process.env.NODE_ENV === "production"
 
 export async function POST(request: Request) {
   let body: { email: string; password: string }
@@ -27,21 +27,7 @@ export async function POST(request: Request) {
     return Response.json(data, { status: apiRes.status })
   }
 
-  const cookieStore = await cookies()
-  cookieStore.set("wa_access", data.accessToken, {
-    httpOnly: true,
-    secure: SECURE,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 15,
-  })
-  cookieStore.set("wa_refresh", data.refreshToken, {
-    httpOnly: true,
-    secure: SECURE,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  })
+  setAuthCookies(await cookies(), data.accessToken, data.refreshToken)
 
   return Response.json({ ok: true }, { status: 201 })
 }

@@ -356,4 +356,23 @@ Optionally restrict API access to specific IPs or CIDR ranges via the \`ALLOWED_
   console.log('');
 }
 
+/**
+ * Baileys drives its socket from its own async event handlers, and some of them
+ * reject outside any await we control — `sendRetryRequest` relaying a decrypt
+ * retry on a socket that closed underneath it throws `Connection Closed` from
+ * deep inside the library. Node's default is to terminate on that, which takes
+ * the whole bridge down and drops every session for a fault the reconnect logic
+ * is already built to absorb. Log it and stay up.
+ */
+process.on('unhandledRejection', (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  console.error(`[WA Server] Unhandled rejection: ${err.message}`);
+  if (err.stack) console.error(err.stack);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error(`[WA Server] Uncaught exception: ${err.message}`);
+  if (err.stack) console.error(err.stack);
+});
+
 bootstrap();

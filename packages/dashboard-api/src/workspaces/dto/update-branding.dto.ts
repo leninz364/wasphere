@@ -1,5 +1,8 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+
+export const NAME_SIZES = ['sm', 'md', 'lg', 'xl'] as const;
+export const NAME_FONTS = ['sans', 'serif', 'mono', 'script', 'impact'] as const;
 
 export class UpdateBrandingDto {
   @ApiPropertyOptional({
@@ -15,4 +18,20 @@ export class UpdateBrandingDto {
   @IsString()
   @MaxLength(80)
   name?: string;
+
+  @ApiPropertyOptional({ description: 'Sidebar name color as #rrggbb. Empty string resets to the theme default.' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^(#[0-9a-fA-F]{6})?$/, { message: 'nameColor must be a #rrggbb hex color' })
+  nameColor?: string;
+
+  @ApiPropertyOptional({ enum: NAME_SIZES, description: 'Sidebar name size. Empty string resets to the default.' })
+  @IsOptional()
+  @IsIn([...NAME_SIZES, ''])
+  nameSize?: string;
+
+  @ApiPropertyOptional({ enum: NAME_FONTS, description: 'Sidebar name font family. Empty string resets to the default.' })
+  @IsOptional()
+  @IsIn([...NAME_FONTS, ''])
+  nameFont?: string;
 }

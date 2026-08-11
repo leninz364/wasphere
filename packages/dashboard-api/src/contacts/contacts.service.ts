@@ -11,12 +11,14 @@ interface ContactRow {
   avatarUrl: string | null;
   tags: string[];
   notes: string | null;
+  ratingAvg: number | null;
+  ratingCount: number;
   updatedAt: Date;
 }
 
 const SELECT = {
   id: true, savedName: true, whatsappName: true, phone: true, jid: true,
-  avatarUrl: true, tags: true, notes: true, updatedAt: true,
+  avatarUrl: true, tags: true, notes: true, ratingAvg: true, ratingCount: true, updatedAt: true,
 } as const;
 
 function view(c: ContactRow) {
@@ -30,6 +32,9 @@ function view(c: ContactRow) {
     avatarUrl: c.avatarUrl,
     tags: c.tags ?? [],
     notes: c.notes,
+    // accumulated (average) customer rating across all agents
+    rating: c.ratingAvg ?? null,
+    ratingCount: c.ratingCount ?? 0,
     updatedAt: c.updatedAt,
   };
 }
@@ -162,6 +167,69 @@ export class ContactsService {
       select: SELECT,
     });
     return view(updated);
+  }
+
+  // ── star rating (accumulated across agents) ───────────────────────────────
+
+  private async assertContact(workspaceId: string, contactId: string) {
+    const contact = await this.prisma.contact.findFirst({
+      where: { id: contactId, workspaceId },
+      select: { id: true },
+    });
+    if (!contact) throw new NotFoundException('Contact not found');
+  }
+
+  /** { avg, count, myRating } — the accumulated rating plus this agent's own. */
+  async getRating(userId: string, workspaceId: string, contactId: string) {
+    await this.assertMember(workspaceId, userId);
+    await this.assertContact(workspaceId, contactId);
+    const [contact, mine] = await Promise.all([
+      this.prisma.contact.findUnique({
+        where: { id: contactId },
+        select: { ratingAvg: true, ratingCount: true },
+      }),
+      this.prisma.contactRating.findUnique({
+        where: { contactId_userId: { contactId, userId } },
+        select: { rating: true },
+      }),
+    ]);
+    return {
+      avg: contact?.ratingAvg ?? null,
+      count: contact?.ratingCount ?? 0,
+      myRating: mine?.rating ?? null,
+    };
+  }
+
+  /**
+   * Sets this agent's 1–5 rating for the contact (0 clears their own rating),
+   * then recomputes the contact's accumulated average + count.
+   */
+  async setRating(userId: string, workspaceId: string, contactId: string, rating: number) {
+    await this.assertMember(workspaceId, userId);
+    await this.assertContact(workspaceId, contactId);
+    const r = Math.round(rating);
+    if (r >= 1 && r <= 5) {
+      await this.prisma.contactRating.upsert({
+        where: { contactId_userId: { contactId, userId } },
+        create: { contactId, userId, rating: r },
+        update: { rating: r },
+      });
+    } else {
+      // 0 / out-of-range removes this agent's contribution
+      await this.prisma.contactRating.deleteMany({ where: { contactId, userId } });
+    }
+    const agg = await this.prisma.contactRating.aggregate({
+      where: { contactId },
+      _avg: { rating: true },
+      _count: true,
+    });
+    const avg = agg._avg.rating ?? null;
+    const count = agg._count;
+    await this.prisma.contact.update({
+      where: { id: contactId },
+      data: { ratingAvg: avg, ratingCount: count },
+    });
+    return { avg, count, myRating: r >= 1 && r <= 5 ? r : null };
   }
 
   async remove(userId: string, workspaceId: string, contactId: string) {

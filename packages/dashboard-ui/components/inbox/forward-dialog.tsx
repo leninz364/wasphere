@@ -60,13 +60,13 @@ export function ForwardDialog({
         body: JSON.stringify(reply),
       })
       if (res.ok) {
-        toast.success(`Forwarded to ${target.contact.name}`)
+        toast.success(`Reenviado a ${target.contact.name}`)
         onClose()
       } else {
-        toast.error(res.status === 503 ? "That session is offline." : "Couldn't forward.")
+        toast.error(res.status === 503 ? "Esa sesión está desconectada." : "No se pudo reenviar.")
       }
     } catch {
-      toast.error("Couldn't forward.")
+      toast.error("No se pudo reenviar.")
     } finally {
       setSending(null)
     }
@@ -76,13 +76,13 @@ export function ForwardDialog({
     <Dialog open={!!message} onOpenChange={(o) => !o && onClose()}>
       <DialogContent showCloseButton className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Forward to…</DialogTitle>
+          <DialogTitle>Reenviar a…</DialogTitle>
         </DialogHeader>
         {!reply ? (
-          <p className="py-4 text-sm text-muted-foreground">This message type can&apos;t be forwarded.</p>
+          <p className="py-4 text-sm text-muted-foreground">Este tipo de mensaje no se puede reenviar.</p>
         ) : (
           <div className="flex flex-col gap-2">
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search chats…" autoFocus />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar conversaciones…" autoFocus />
             <div className="flex max-h-72 flex-col gap-0.5 overflow-y-auto">
               {list.map((c) => (
                 <button
@@ -99,11 +99,11 @@ export function ForwardDialog({
                     <div className="truncate text-sm font-medium text-foreground">{c.contact.name}</div>
                     <div className="truncate text-xs text-muted-foreground">+{c.contact.phone}</div>
                   </div>
-                  {sending === c.id && <span className="text-xs text-muted-foreground">Sending…</span>}
+                  {sending === c.id && <span className="text-xs text-muted-foreground">Enviando…</span>}
                 </button>
               ))}
               {list.length === 0 && (
-                <p className="p-4 text-center text-sm text-muted-foreground">No other chats to forward to.</p>
+                <p className="p-4 text-center text-sm text-muted-foreground">No hay otras conversaciones para reenviar.</p>
               )}
             </div>
           </div>

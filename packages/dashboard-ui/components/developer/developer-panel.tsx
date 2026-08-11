@@ -1,9 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { toast } from "sonner"
 import { useSearchParams } from "next/navigation"
-import { Eye, EyeOff, Copy, ExternalLink } from "lucide-react"
+import { ExternalLink } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,7 +17,6 @@ import {
 } from "@/components/ui/table"
 import { ApiError } from "@/components/ui/api-error"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ApiKeysTab } from "@/components/developer/api-keys-tab"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -53,49 +51,6 @@ interface ApiReferenceTabProps {
 }
 
 function ApiReferenceTab({ waServerUrl }: ApiReferenceTabProps) {
-  const [token, setToken] = React.useState<string | null>(null)
-  const [revealed, setRevealed] = React.useState(false)
-  const [loading, setLoading] = React.useState(true)
-  const [fetchError, setFetchError] = React.useState(false)
-
-  React.useEffect(() => {
-    let cancelled = false
-
-    async function loadToken() {
-      setLoading(true)
-      setFetchError(false)
-      try {
-        const res = await fetch("/api/developer/token")
-        if (!res.ok) {
-          if (!cancelled) setFetchError(true)
-          return
-        }
-        const data = await res.json()
-        if (!cancelled) setToken(data.token ?? null)
-      } catch {
-        if (!cancelled) setFetchError(true)
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    loadToken()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const handleCopy = async () => {
-    if (!token) return
-    try {
-      await navigator.clipboard.writeText(token)
-      toast.success("Token copied.")
-    } catch {
-      toast.error("Failed to copy token.")
-    }
-  }
-
   return (
     <div className="flex flex-col gap-6">
       {/* WA Server URL */}
@@ -111,63 +66,21 @@ function ApiReferenceTab({ waServerUrl }: ApiReferenceTabProps) {
               className={buttonVariants({ variant: "outline", size: "sm" })}
             >
               <ExternalLink className="size-3.5" />
-              View API Docs
+              Ver documentación de API
             </a>
           </div>
         ) : (
-          <p className="text-sm text-zinc-700 dark:text-zinc-300">Not configured</p>
+          <p className="text-sm text-zinc-700 dark:text-zinc-300">No configurado</p>
         )}
       </div>
 
-      {/* API Token */}
-      <div className="flex flex-col gap-1.5">
-        <Label className="text-sm font-medium text-foreground">API Token</Label>
-        {loading ? (
-          <div className="h-9 w-full animate-shimmer-mint rounded-md" />
-        ) : fetchError ? (
-          <ApiError message="Could not load token." />
-        ) : token === null ? (
-          <p className="text-sm text-zinc-700 dark:text-zinc-300">
-            No token configured. Set one in{" "}
-            <a
-              href="/dashboard/settings"
-              className="font-medium underline underline-offset-2"
-            >
-              Settings
-            </a>
-            .
-          </p>
-        ) : (
-          <div className="flex items-center gap-2">
-            <Input
-              value={revealed ? token : "••••••••••••"}
-              readOnly
-              className="font-mono text-sm placeholder:text-zinc-400 placeholder:font-light"
-              aria-label="API token"
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setRevealed((v) => !v)}
-              aria-label={revealed ? "Hide token" : "Show token"}
-            >
-              {revealed ? (
-                <EyeOff className="size-4" />
-              ) : (
-                <Eye className="size-4" />
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handleCopy}
-              aria-label="Copy token"
-            >
-              <Copy className="size-4" />
-            </Button>
-          </div>
-        )}
-      </div>
+      <p className="text-xs text-muted-foreground">
+        Las API Keys, los tokens del WA Server y los webhooks se administran en{" "}
+        <a href="/dashboard/connections" className="font-medium text-primary underline underline-offset-2">
+          Conexiones
+        </a>
+        .
+      </p>
     </div>
   )
 }
@@ -250,10 +163,10 @@ function AuditLogTab() {
       {/* Filter bar */}
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
-          <Label htmlFor="al-session" className="text-sm font-medium text-foreground">Session ID</Label>
+          <Label htmlFor="al-session" className="text-sm font-medium text-foreground">ID de sesión</Label>
           <Input
             id="al-session"
-            placeholder="session-id"
+            placeholder="id-sesion"
             value={pendingFilters.sessionId}
             onChange={(e) =>
               setPendingFilters((f) => ({ ...f, sessionId: e.target.value }))
@@ -263,7 +176,7 @@ function AuditLogTab() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <Label htmlFor="al-status" className="text-sm font-medium text-foreground">Status Code</Label>
+          <Label htmlFor="al-status" className="text-sm font-medium text-foreground">Código de estado</Label>
           <Input
             id="al-status"
             placeholder="200"
@@ -276,7 +189,7 @@ function AuditLogTab() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <Label htmlFor="al-from" className="text-sm font-medium text-foreground">From</Label>
+          <Label htmlFor="al-from" className="text-sm font-medium text-foreground">Desde</Label>
           <Input
             id="al-from"
             type="datetime-local"
@@ -289,7 +202,7 @@ function AuditLogTab() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <Label htmlFor="al-to" className="text-sm font-medium text-foreground">To</Label>
+          <Label htmlFor="al-to" className="text-sm font-medium text-foreground">Hasta</Label>
           <Input
             id="al-to"
             type="datetime-local"
@@ -302,14 +215,14 @@ function AuditLogTab() {
         </div>
 
         <Button variant="outline" onClick={handleApply}>
-          Apply
+          Aplicar
         </Button>
       </div>
 
       {/* Table */}
       {error ? (
         <ApiError
-          message="Could not load audit logs."
+          message="No se pudieron cargar los registros de auditoría."
           onRetry={() => fetchLogs(page, appliedFilters)}
         />
       ) : isLoading ? (
@@ -319,17 +232,17 @@ function AuditLogTab() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <EmptyState message="No audit log entries." />
+        <EmptyState message="Sin registros de auditoría." />
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Timestamp</TableHead>
-              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Session ID</TableHead>
-              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Method</TableHead>
-              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Path</TableHead>
-              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</TableHead>
-              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Duration (ms)</TableHead>
+              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Marca de tiempo</TableHead>
+              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">ID de sesión</TableHead>
+              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Método</TableHead>
+              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Ruta</TableHead>
+              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Estado</TableHead>
+              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Duración (ms)</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -375,7 +288,7 @@ function AuditLogTab() {
       {!error && !isLoading && items.length > 0 && (
         <div className="flex items-center justify-between text-sm text-zinc-700 dark:text-zinc-300">
           <span>
-            Page {page} — {total} total
+            Página {page} — {total} total
           </span>
           <div className="flex gap-2">
             <Button
@@ -384,7 +297,7 @@ function AuditLogTab() {
               onClick={() => setPage((p) => p - 1)}
               disabled={page <= 1}
             >
-              Previous
+              Anterior
             </Button>
             <Button
               variant="outline"
@@ -392,7 +305,7 @@ function AuditLogTab() {
               onClick={() => setPage((p) => p + 1)}
               disabled={!hasNextPage}
             >
-              Next
+              Siguiente
             </Button>
           </div>
         </div>
@@ -410,27 +323,22 @@ interface DeveloperPanelProps {
 export function DeveloperPanel({ waServerUrl }: DeveloperPanelProps) {
   const searchParams = useSearchParams()
   const tabParam = searchParams.get("tab")
-  const validTabs = ["api-keys", "api-reference", "audit-log"] as const
+  const validTabs = ["api-reference", "audit-log"] as const
   type Tab = typeof validTabs[number]
-  const initialTab: Tab = (validTabs as readonly string[]).includes(tabParam ?? "") ? (tabParam as Tab) : "api-keys"
+  const initialTab: Tab = (validTabs as readonly string[]).includes(tabParam ?? "") ? (tabParam as Tab) : "api-reference"
   const [activeTab, setActiveTab] = React.useState<Tab>(initialTab)
 
   return (
     <Tabs
       value={activeTab}
       onValueChange={(val) =>
-        setActiveTab(val as "api-keys" | "api-reference" | "audit-log")
+        setActiveTab(val as "api-reference" | "audit-log")
       }
     >
       <TabsList>
-        <TabsTrigger value="api-keys">API Keys</TabsTrigger>
-        <TabsTrigger value="api-reference">API Reference</TabsTrigger>
-        <TabsTrigger value="audit-log">Audit Log</TabsTrigger>
+        <TabsTrigger value="api-reference">Referencia de API</TabsTrigger>
+        <TabsTrigger value="audit-log">Registro de auditoría</TabsTrigger>
       </TabsList>
-
-      <TabsContent value="api-keys" className="mt-4">
-        <ApiKeysTab />
-      </TabsContent>
 
       <TabsContent value="api-reference" className="mt-4">
         <ApiReferenceTab waServerUrl={waServerUrl} />

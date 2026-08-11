@@ -73,7 +73,11 @@ export class TeamService {
   async myRole(workspaceId: string, userId: string) {
     const m = await this.prisma.workspaceMember.findUnique({
       where: { workspaceId_userId: { workspaceId, userId } },
-      select: { role: true, customRole: { select: { name: true, capabilities: true } } },
+      select: {
+        role: true,
+        customRole: { select: { name: true, capabilities: true } },
+        user: { select: { firstName: true, lastName: true, cargo: true } },
+      },
     });
     if (!m) throw new ForbiddenException('Not a member of this workspace');
     const roleName = m.role === 'MEMBER' ? (m.customRole?.name ?? 'Agent') : m.role === 'OWNER' ? 'Owner' : 'Admin';
@@ -81,6 +85,9 @@ export class TeamService {
       role: m.role,
       roleName,
       capabilities: resolveCapabilities(m.role, m.customRole?.capabilities),
+      firstName: m.user.firstName,
+      lastName: m.user.lastName,
+      cargo: m.user.cargo,
     };
   }
 
@@ -92,7 +99,7 @@ export class TeamService {
         userId: true,
         role: true,
         createdAt: true,
-        user: { select: { email: true } },
+        user: { select: { email: true, firstName: true, lastName: true, cedula: true, cargo: true } },
         customRole: { select: { id: true, name: true, capabilities: true } },
       },
       orderBy: { createdAt: 'asc' },
@@ -100,6 +107,11 @@ export class TeamService {
     return members.map((m) => ({
       userId: m.userId,
       email: m.user.email,
+      firstName: m.user.firstName,
+      lastName: m.user.lastName,
+      cedula: m.user.cedula,
+      cargo: m.user.cargo,
+      name: [m.user.firstName, m.user.lastName].filter(Boolean).join(' ') || null,
       role: m.role,
       // For agents, the assigned custom role (null if none).
       customRoleId: m.role === 'MEMBER' ? (m.customRole?.id ?? null) : null,
@@ -109,22 +121,42 @@ export class TeamService {
     }));
   }
 
-  /** Reassign a member's tier/role. Owner/admin only. roleRef = 'ADMIN' | customRoleId. */
-  async assignRole(workspaceId: string, actorId: string, targetUserId: string, roleRef: string) {
+  /**
+   * Update a member: reassign their tier/role and/or edit their agent profile
+   * (nombre, apellido, cédula, cargo). Owner/admin only.
+   */
+  async updateMember(
+    workspaceId: string,
+    actorId: string,
+    targetUserId: string,
+    dto: { role?: string; firstName?: string; lastName?: string; cedula?: string; cargo?: string },
+  ) {
     const actorRole = await this.assertManager(workspaceId, actorId);
     const target = await this.prisma.workspaceMember.findUnique({
       where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
       select: { role: true },
     });
     if (!target) throw new NotFoundException('Member not found');
-    if (target.role === 'OWNER') throw new BadRequestException('Cannot change the owner’s role');
-    if (actorRole === 'ADMIN' && target.role === 'ADMIN') throw new ForbiddenException('Only the owner can change an admin’s role');
 
-    const { role, customRoleId } = await this.resolveRoleRef(workspaceId, actorRole, roleRef);
-    await this.prisma.workspaceMember.update({
-      where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
-      data: { role, customRoleId },
-    });
+    if (dto.role !== undefined) {
+      if (target.role === 'OWNER') throw new BadRequestException('Cannot change the owner’s role');
+      if (actorRole === 'ADMIN' && target.role === 'ADMIN') throw new ForbiddenException('Only the owner can change an admin’s role');
+      const { role, customRoleId } = await this.resolveRoleRef(workspaceId, actorRole, dto.role);
+      await this.prisma.workspaceMember.update({
+        where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
+        data: { role, customRoleId },
+      });
+    }
+
+    // Profile fields: empty string clears the value.
+    const profile: Record<string, string | null> = {};
+    for (const key of ['firstName', 'lastName', 'cedula', 'cargo'] as const) {
+      if (dto[key] !== undefined) profile[key] = dto[key]!.trim() || null;
+    }
+    if (Object.keys(profile).length > 0) {
+      await this.prisma.user.update({ where: { id: targetUserId }, data: profile });
+    }
+
     return { ok: true };
   }
 
@@ -214,6 +246,131 @@ export class TeamService {
       throw new BadRequestException('Reassign the members using this role before deleting it.');
     }
     await this.prisma.customRole.delete({ where: { id: roleId } });
+    return { ok: true };
+  }
+
+  // ── Agent groups ─────────────────────────────────────────────────────────
+
+  private groupView(g: {
+    id: string;
+    name: string;
+    description: string | null;
+    members: { user: { id: string; email: string; firstName: string | null; lastName: string | null; cargo: string | null } }[];
+  }) {
+    return {
+      id: g.id,
+      name: g.name,
+      description: g.description,
+      members: g.members.map((m) => ({
+        userId: m.user.id,
+        email: m.user.email,
+        name: [m.user.firstName, m.user.lastName].filter(Boolean).join(' ') || null,
+        cargo: m.user.cargo,
+      })),
+    };
+  }
+
+  private readonly groupInclude = {
+    members: {
+      include: {
+        user: { select: { id: true, email: true, firstName: true, lastName: true, cargo: true } },
+      },
+    },
+  } as const;
+
+  async listGroups(workspaceId: string, userId: string) {
+    // Any member can read the group list (agents need it to delegate chats);
+    // create/update/delete stay owner/admin-only.
+    const member = await this.prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      select: { id: true },
+    });
+    if (!member) throw new ForbiddenException('Not a member of this workspace');
+    const groups = await this.prisma.agentGroup.findMany({
+      where: { workspaceId },
+      include: this.groupInclude,
+      orderBy: { createdAt: 'asc' },
+    });
+    return groups.map((g) => this.groupView(g));
+  }
+
+  async createGroup(workspaceId: string, userId: string, name: string, description?: string) {
+    await this.assertManager(workspaceId, userId);
+    const cleanName = name.trim();
+    if (!cleanName) throw new BadRequestException('Group name is required');
+    const exists = await this.prisma.agentGroup.findFirst({
+      where: { workspaceId, name: cleanName },
+      select: { id: true },
+    });
+    if (exists) throw new BadRequestException('A group with that name already exists');
+    const group = await this.prisma.agentGroup.create({
+      data: { workspaceId, name: cleanName, description: description?.trim() || null },
+      include: this.groupInclude,
+    });
+    return this.groupView(group);
+  }
+
+  async updateGroup(
+    workspaceId: string,
+    userId: string,
+    groupId: string,
+    dto: { name?: string; description?: string; memberIds?: string[] },
+  ) {
+    await this.assertManager(workspaceId, userId);
+    const group = await this.prisma.agentGroup.findFirst({
+      where: { id: groupId, workspaceId },
+      select: { id: true },
+    });
+    if (!group) throw new NotFoundException('Group not found');
+
+    const data: { name?: string; description?: string | null } = {};
+    if (dto.name !== undefined) {
+      const cleanName = dto.name.trim();
+      if (!cleanName) throw new BadRequestException('Group name is required');
+      const clash = await this.prisma.agentGroup.findFirst({
+        where: { workspaceId, name: cleanName, id: { not: groupId } },
+        select: { id: true },
+      });
+      if (clash) throw new BadRequestException('A group with that name already exists');
+      data.name = cleanName;
+    }
+    if (dto.description !== undefined) data.description = dto.description.trim() || null;
+
+    // memberIds replaces the whole membership set; every id must be a member
+    // of this workspace.
+    if (dto.memberIds !== undefined) {
+      const ids = [...new Set(dto.memberIds)];
+      const valid = await this.prisma.workspaceMember.findMany({
+        where: { workspaceId, userId: { in: ids } },
+        select: { userId: true },
+      });
+      if (valid.length !== ids.length) {
+        throw new BadRequestException('One or more users are not members of this workspace');
+      }
+      await this.prisma.$transaction([
+        this.prisma.agentGroupMember.deleteMany({ where: { groupId } }),
+        this.prisma.agentGroupMember.createMany({
+          data: ids.map((uid) => ({ groupId, userId: uid })),
+        }),
+      ]);
+    }
+
+    const updated = await this.prisma.agentGroup.update({
+      where: { id: groupId },
+      data,
+      include: this.groupInclude,
+    });
+    return this.groupView(updated);
+  }
+
+  async deleteGroup(workspaceId: string, userId: string, groupId: string) {
+    await this.assertManager(workspaceId, userId);
+    const group = await this.prisma.agentGroup.findFirst({
+      where: { id: groupId, workspaceId },
+      select: { id: true },
+    });
+    if (!group) throw new NotFoundException('Group not found');
+    await this.prisma.agentGroup.delete({ where: { id: groupId } });
     return { ok: true };
   }
 

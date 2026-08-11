@@ -29,7 +29,7 @@ function buildBody(
 ): Record<string, unknown> {
   const sid = sessionId || "your-session-id"
   const recipient = to || "+1234567890"
-  const text = (data.text as string) || "Hello from WaSphere"
+  const text = (data.text as string) || "Hello from BChat"
   const url = "https://example.com/file"
   const caption = (data.caption as string) || ""
   const base = { sessionId: sid, to: recipient }
@@ -158,7 +158,7 @@ export function CodeSnippet({ messageType, sessionId, recipient, previewData }: 
           className="flex items-center gap-1 px-2 py-1 mr-0.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150 cursor-pointer"
         >
           {copied ? <Check size={11} /> : <Copy size={11} />}
-          {copied ? "Copied" : "Copy"}
+          {copied ? "Copiado" : "Copiar"}
         </button>
       </div>
 

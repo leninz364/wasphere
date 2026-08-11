@@ -50,12 +50,12 @@ export function TemplateBuilder({
   const submit = async () => {
     const cleanName = name.trim().toLowerCase()
     if (!/^[a-z0-9_]{1,512}$/.test(cleanName)) {
-      toast.error("Name: lowercase letters, numbers and underscores only.")
+      toast.error("Nombre: solo minúsculas, números y guiones bajos.")
       return
     }
-    if (!body.trim()) { toast.error("Body text is required."); return }
+    if (!body.trim()) { toast.error("El texto del cuerpo es obligatorio."); return }
     if (vars.some((v) => !examples[v]?.trim())) {
-      toast.error("Provide a sample value for each variable.")
+      toast.error("Proporciona un valor de ejemplo para cada variable.")
       return
     }
     setBusy(true)
@@ -74,13 +74,13 @@ export function TemplateBuilder({
         }),
       })
       const data = await res.json()
-      if (!res.ok) { toast.error(data?.message ?? "Could not create template."); return }
-      toast.success(`Template "${cleanName}" submitted to Meta — status: ${data.status ?? "PENDING"}.`)
+      if (!res.ok) { toast.error(data?.message ?? "No se pudo crear la plantilla."); return }
+      toast.success(`Plantilla "${cleanName}" enviada a Meta — estado: ${data.status ?? "PENDIENTE"}.`)
       reset()
       onOpenChange(false)
       onCreated?.()
     } catch {
-      toast.error("Could not reach the server.")
+      toast.error("No se pudo comunicar con el servidor.")
     } finally {
       setBusy(false)
     }
@@ -89,16 +89,16 @@ export function TemplateBuilder({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton className="sm:max-w-lg">
-        <DialogHeader><DialogTitle>New template</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Nueva plantilla</DialogTitle></DialogHeader>
         <div className="flex max-h-[65vh] flex-col gap-3 overflow-y-auto pr-1">
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="tb-name">Name</Label>
-              <Input id="tb-name" value={name} placeholder="order_update" maxLength={512}
+              <Label htmlFor="tb-name">Nombre</Label>
+              <Input id="tb-name" value={name} placeholder="actualizar_pedido" maxLength={512}
                 onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="tb-cat">Category</Label>
+              <Label htmlFor="tb-cat">Categoría</Label>
               <select id="tb-cat" value={category} onChange={(e) => setCategory(e.target.value as (typeof CATEGORIES)[number])}
                 className="h-9 rounded-md border border-input bg-transparent px-3 text-sm">
                 {CATEGORIES.map((c) => <option key={c} value={c}>{c[0] + c.slice(1).toLowerCase()}</option>)}
@@ -107,7 +107,7 @@ export function TemplateBuilder({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="tb-lang">Language</Label>
+            <Label htmlFor="tb-lang">Idioma</Label>
             <select id="tb-lang" value={language} onChange={(e) => setLanguage(e.target.value)}
               className="h-9 w-40 rounded-md border border-input bg-transparent px-3 text-sm">
               {LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
@@ -115,27 +115,27 @@ export function TemplateBuilder({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="tb-header">Header <span className="text-muted-foreground">(optional)</span></Label>
-            <Input id="tb-header" value={headerText} maxLength={60} placeholder="Order update"
+            <Label htmlFor="tb-header">Encabezado <span className="text-muted-foreground">(opcional)</span></Label>
+            <Input id="tb-header" value={headerText} maxLength={60} placeholder="Actualización de pedido"
               onChange={(e) => setHeaderText(e.target.value)} />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="tb-body">Body</Label>
+            <Label htmlFor="tb-body">Cuerpo</Label>
             <textarea id="tb-body" value={body} rows={4} maxLength={1024}
-              placeholder="Hi {{1}}, your order {{2}} is now {{3}}."
+              placeholder="Hola {{1}}, tu pedido {{2}} ahora está {{3}}."
               onChange={(e) => setBody(e.target.value)}
               className="rounded-md border border-input bg-transparent p-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring" />
-            <p className="text-xs text-muted-foreground">Use {`{{1}}`}, {`{{2}}`}… for variables.</p>
+            <p className="text-xs text-muted-foreground">Usa {`{{1}}`}, {`{{2}}`}… para variables.</p>
           </div>
 
           {vars.length > 0 && (
             <div className="flex flex-col gap-2 rounded-md border border-input bg-muted/30 p-3">
-              <p className="text-xs font-medium">Sample values (Meta requires one per variable)</p>
+              <p className="text-xs font-medium">Valores de ejemplo (Meta requiere uno por variable)</p>
               {vars.map((v) => (
                 <div key={v} className="flex items-center gap-2">
                   <span className="w-12 text-xs tabular-nums text-muted-foreground">{`{{${v}}}`}</span>
-                  <Input value={examples[v] ?? ""} placeholder={`Example for {{${v}}}`}
+                  <Input value={examples[v] ?? ""} placeholder={`Ejemplo para {{${v}}}`}
                     onChange={(e) => setExamples((p) => ({ ...p, [v]: e.target.value }))} className="h-8" />
                 </div>
               ))}
@@ -143,17 +143,17 @@ export function TemplateBuilder({
           )}
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="tb-footer">Footer <span className="text-muted-foreground">(optional)</span></Label>
-            <Input id="tb-footer" value={footer} maxLength={60} placeholder="Reply STOP to opt out"
+            <Label htmlFor="tb-footer">Pie de página <span className="text-muted-foreground">(opcional)</span></Label>
+            <Input id="tb-footer" value={footer} maxLength={60} placeholder="Responde STOP para darte de baja"
               onChange={(e) => setFooter(e.target.value)} />
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Templates are reviewed by Meta before they can be sent — approval usually takes a few minutes to a few hours.
+            Las plantillas son revisadas por Meta antes de poder ser enviadas — la aprobación generalmente toma de unos minutos a unas horas.
           </p>
         </div>
         <DialogFooter>
-          <Button onClick={() => void submit()} disabled={busy}>{busy ? "Submitting…" : "Submit for approval"}</Button>
+          <Button onClick={() => void submit()} disabled={busy}>{busy ? "Enviando…" : "Enviar para aprobación"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

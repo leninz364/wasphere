@@ -31,7 +31,7 @@ export function TextForm({ onSubmit, submitting, onTextChange }: FormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!text.trim()) {
-      setError("Message text is required.")
+      setError("El texto del mensaje es obligatorio.")
       return
     }
     setError("")
@@ -45,21 +45,21 @@ export function TextForm({ onSubmit, submitting, onTextChange }: FormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex items-center justify-between pb-1">
-        <span className="text-xs text-muted-foreground">Fill in the fields below</span>
+        <span className="text-xs text-muted-foreground">Completa los campos a continuación</span>
         <Button type="button" size="xs" variant="outline" onClick={fillSample}>
-          Fill Sample
+          Rellenar ejemplo
         </Button>
       </div>
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
-          <Label htmlFor="text-body">Message</Label>
+          <Label htmlFor="text-body">Mensaje</Label>
           <span className="text-xs text-muted-foreground">
             {text.length}/{MAX_TEXT}
           </span>
         </div>
         <Textarea
           id="text-body"
-          placeholder="Type your message…"
+          placeholder="Escribe tu mensaje…"
           value={text}
           onChange={(e) => { setText(e.target.value); onTextChange?.(e.target.value) }}
           maxLength={MAX_TEXT}
@@ -77,16 +77,16 @@ export function TextForm({ onSubmit, submitting, onTextChange }: FormProps) {
           className="size-4 rounded border-border accent-primary"
         />
         <Label htmlFor="show-reply" className="cursor-pointer font-normal">
-          Reply to message
+          Responder a un mensaje
         </Label>
       </div>
 
       {showReply && (
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="quoted-id">Quoted Message ID</Label>
+          <Label htmlFor="quoted-id">ID del mensaje citado</Label>
           <Input
             id="quoted-id"
-            placeholder="Message ID to quote"
+            placeholder="ID del mensaje a citar"
             value={quotedId}
             onChange={(e) => setQuotedId(e.target.value)}
           />
@@ -94,7 +94,7 @@ export function TextForm({ onSubmit, submitting, onTextChange }: FormProps) {
       )}
 
       <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Sending…" : "Send Message"}
+        {submitting ? "Enviando…" : "Enviar mensaje"}
       </Button>
     </form>
   )

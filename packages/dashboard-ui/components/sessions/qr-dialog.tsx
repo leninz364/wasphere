@@ -66,7 +66,7 @@ export function QrDialog({
         // Transient failures (rate limit, service unavailable): keep polling up to 3 attempts
         if (failCountRef.current < 3) return
         const body = await res.json().catch(() => ({}))
-        setError(body.message ?? "Failed to fetch session status.")
+        setError(body.message ?? "No se pudo obtener el estado de la sesión.")
         clearPoller()
         return
       }
@@ -100,7 +100,7 @@ export function QrDialog({
         clearPoller()
       }
     } catch {
-      setError("Could not reach the server.")
+      setError("No se pudo conectar con el servidor.")
       clearPoller()
     } finally {
       isFetchingRef.current = false
@@ -145,7 +145,7 @@ export function QrDialog({
 
       if (!createRes.ok) {
         const body = await createRes.json().catch(() => ({}))
-        setError(body.message ?? "Failed to restart session.")
+        setError(body.message ?? "No se pudo reiniciar la sesión.")
         return
       }
 
@@ -157,7 +157,7 @@ export function QrDialog({
       poll()
       intervalRef.current = setInterval(poll, 4000)
     } catch {
-      setError("Could not reach the server.")
+      setError("No se pudo conectar con el servidor.")
     } finally {
       setRetrying(false)
     }
@@ -169,7 +169,7 @@ export function QrDialog({
         <div className="flex flex-col items-center gap-4 py-4">
           <p className="text-sm text-destructive">{error}</p>
           <Button onClick={handleRetry} disabled={retrying} variant="outline">
-            {retrying ? "Retrying…" : "Retry"}
+            {retrying ? "Reintentando…" : "Reintentar"}
           </Button>
         </div>
       )
@@ -180,7 +180,7 @@ export function QrDialog({
         <div className="flex flex-col items-center gap-3 py-6">
           <div className="size-8 animate-spin rounded-full border-2 border-muted border-t-primary" />
           <p className="text-sm text-muted-foreground">
-            Initialising session…
+            Inicializando sesión…
           </p>
         </div>
       )
@@ -192,16 +192,16 @@ export function QrDialog({
           {session.qrCode ? (
             <img
               src={session.qrCode}
-              alt="Scan QR code"
+              alt="Escanea el código QR"
               className="w-full max-w-xs mx-auto rounded-lg"
             />
           ) : (
             <div className="flex h-48 w-48 items-center justify-center rounded-lg bg-muted text-xs text-muted-foreground">
-              QR loading…
+              Cargando QR…
             </div>
           )}
           <p className="text-sm text-muted-foreground">
-            Scan with WhatsApp — expires in{" "}
+            Escanéalo con WhatsApp — expira en{" "}
             <span className="font-medium tabular-nums">{countdown}s</span>
           </p>
         </div>
@@ -212,10 +212,10 @@ export function QrDialog({
       return (
         <div className="flex flex-col items-center gap-2 py-6">
           <p className="text-lg font-semibold text-green-600 dark:text-green-400">
-            Connected!
+            ¡Conectado!
           </p>
           <p className="text-sm text-muted-foreground">
-            Your WhatsApp account is linked.
+            Tu cuenta de WhatsApp está vinculada.
           </p>
         </div>
       )
@@ -226,11 +226,11 @@ export function QrDialog({
         <div className="flex flex-col items-center gap-4 py-4">
           <p className="text-sm text-destructive">
             {session.status === "qr_expired"
-              ? "QR code expired. Please retry."
-              : "Session failed. Please retry."}
+              ? "El código QR expiró. Inténtalo de nuevo."
+              : "La sesión falló. Inténtalo de nuevo."}
           </p>
           <Button onClick={handleRetry} disabled={retrying} variant="outline">
-            {retrying ? "Retrying…" : "Retry"}
+            {retrying ? "Reintentando…" : "Reintentar"}
           </Button>
         </div>
       )
@@ -243,9 +243,9 @@ export function QrDialog({
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent showCloseButton>
         <DialogHeader>
-          <DialogTitle>Connect WhatsApp</DialogTitle>
+          <DialogTitle>Conectar WhatsApp</DialogTitle>
         </DialogHeader>
-        <p className="text-xs text-muted-foreground">Session: {sessionId}</p>
+        <p className="text-xs text-muted-foreground">Sesión: {sessionId}</p>
         {renderBody()}
       </DialogContent>
     </Dialog>

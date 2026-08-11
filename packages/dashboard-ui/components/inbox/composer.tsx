@@ -27,10 +27,10 @@ const MAX_FILE_BYTES = 7 * 1024 * 1024
 
 const REPLIES_KEY = "wasphere.inbox.quickReplies"
 const DEFAULT_REPLIES = [
-  "Thanks for reaching out! How can I help?",
-  "Your order is confirmed and will ship soon. 📦",
-  "Could you share your order number, please?",
-  "We're closed right now — we'll reply first thing tomorrow.",
+  "¡Gracias por escribirnos! ¿En qué puedo ayudarte?",
+  "Tu pedido está confirmado y se enviará pronto. 📦",
+  "¿Podrías compartirnos tu número de pedido, por favor?",
+  "Ahora estamos cerrados — te responderemos a primera hora mañana.",
 ]
 
 type Attachment = {
@@ -135,7 +135,7 @@ export function Composer({
       const list: Tpl[] = (Array.isArray(data) ? data : []).filter((t: Tpl) => t.status === "APPROVED")
       setTplList(list)
     } catch {
-      toast.error("Could not load templates.")
+      toast.error("No se pudieron cargar las plantillas.")
     } finally {
       setTplLoading(false)
     }
@@ -145,7 +145,7 @@ export function Composer({
 
   const sendTemplate = async () => {
     if (!tplSel) return
-    if (tplParams.some((p) => !p.trim())) { toast.error("Fill all template variables."); return }
+    if (tplParams.some((p) => !p.trim())) { toast.error("Completa todas las variables de la plantilla."); return }
     setExtraSending(true)
     const ok = await onSend({
       kind: "template",
@@ -181,7 +181,7 @@ export function Composer({
   const pickFile = async (file: File | undefined, kind: "image" | "document") => {
     if (!file) return
     if (file.size > MAX_FILE_BYTES) {
-      toast.error("File too large — max 7 MB.")
+      toast.error("Archivo demasiado grande — máx. 7 MB.")
       return
     }
     try {
@@ -194,7 +194,7 @@ export function Composer({
         previewUrl: kind === "image" ? dataUri : undefined,
       })
     } catch {
-      toast.error("Could not read the file.")
+      toast.error("No se pudo leer el archivo.")
     }
   }
 
@@ -225,8 +225,8 @@ export function Composer({
   const sendPoll = async () => {
     const name = pollName.trim()
     const opts = pollOptions.map((o) => o.trim()).filter(Boolean)
-    if (!name) { toast.error("Poll needs a question."); return }
-    if (opts.length < 2) { toast.error("Poll needs at least 2 options."); return }
+    if (!name) { toast.error("La encuesta necesita una pregunta."); return }
+    if (opts.length < 2) { toast.error("La encuesta necesita al menos 2 opciones."); return }
     setPollSending(true)
     const ok = await onSend({
       kind: "poll",
@@ -240,8 +240,8 @@ export function Composer({
 
   const sendLocation = async () => {
     const latN = Number(lat), lngN = Number(lng)
-    if (!Number.isFinite(latN) || latN < -90 || latN > 90) { toast.error("Latitude must be between -90 and 90."); return }
-    if (!Number.isFinite(lngN) || lngN < -180 || lngN > 180) { toast.error("Longitude must be between -180 and 180."); return }
+    if (!Number.isFinite(latN) || latN < -90 || latN > 90) { toast.error("La latitud debe estar entre -90 y 90."); return }
+    if (!Number.isFinite(lngN) || lngN < -180 || lngN > 180) { toast.error("La longitud debe estar entre -180 y 180."); return }
     setExtraSending(true)
     const ok = await onSend({ kind: "location", latitude: latN, longitude: lngN, locationName: locName.trim() || undefined, address: locAddr.trim() || undefined })
     setExtraSending(false)
@@ -250,8 +250,8 @@ export function Composer({
 
   const sendContact = async () => {
     const name = cName.trim(), phone = cPhone.trim()
-    if (!name) { toast.error("Contact needs a name."); return }
-    if (!phone) { toast.error("Contact needs a phone number."); return }
+    if (!name) { toast.error("El contacto necesita un nombre."); return }
+    if (!phone) { toast.error("El contacto necesita un número de teléfono."); return }
     setExtraSending(true)
     const ok = await onSend({ kind: "contact", contactName: name, contactPhone: phone })
     setExtraSending(false)
@@ -261,8 +261,8 @@ export function Composer({
   const sendButtons = async () => {
     const body = btnBody.trim()
     const labels = btns.map((b) => b.trim()).filter(Boolean)
-    if (!body) { toast.error("Buttons message needs body text."); return }
-    if (labels.length < 1) { toast.error("Add at least one button."); return }
+    if (!body) { toast.error("El mensaje con botones necesita texto en el cuerpo."); return }
+    if (labels.length < 1) { toast.error("Agrega al menos un botón."); return }
     setExtraSending(true)
     const ok = await onSend({
       kind: "buttons",
@@ -277,16 +277,16 @@ export function Composer({
   const sendList = async () => {
     const header = listHeader.trim(), body = listBody.trim(), btn = listBtn.trim()
     const rows = listRows.map((r) => ({ title: r.title.trim(), description: r.description.trim() })).filter((r) => r.title)
-    if (!body) { toast.error("List message needs body text."); return }
-    if (!btn) { toast.error("List needs a button label."); return }
-    if (rows.length < 1) { toast.error("Add at least one list item."); return }
+    if (!body) { toast.error("El mensaje de lista necesita texto en el cuerpo."); return }
+    if (!btn) { toast.error("La lista necesita una etiqueta de botón."); return }
+    if (rows.length < 1) { toast.error("Agrega al menos un elemento a la lista."); return }
     setExtraSending(true)
     const ok = await onSend({
       kind: "list",
-      listTitle: header || "Menu",
+      listTitle: header || "Menú",
       text: body,
       buttonText: btn,
-      sections: [{ title: header || "Options", rows: rows.map((r, i) => ({ id: `row_${i + 1}`, title: r.title, description: r.description || undefined })) }],
+      sections: [{ title: header || "Opciones", rows: rows.map((r, i) => ({ id: `row_${i + 1}`, title: r.title, description: r.description || undefined })) }],
     })
     setExtraSending(false)
     if (ok) { setListOpen(false); setListHeader(""); setListBody(""); setListBtn(""); setListRows([{ title: "", description: "" }]) }
@@ -297,7 +297,7 @@ export function Composer({
       {sessionOffline && (
         <div className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
           <StatusDot status="disconnected" />
-          Session disconnected — reconnect to send.
+          Sesión desconectada — reconéctate para enviar.
         </div>
       )}
 
@@ -310,7 +310,7 @@ export function Composer({
             <FileText className="size-5 shrink-0 opacity-70" />
           )}
           <span className="flex-1 truncate text-xs">{attachment.fileName}</span>
-          <Button variant="ghost" size="icon" className="size-6" onClick={() => setAttachment(null)} title="Remove">
+          <Button variant="ghost" size="icon" className="size-6" onClick={() => setAttachment(null)} title="Quitar">
             <X className="size-3.5" />
           </Button>
         </div>
@@ -334,37 +334,37 @@ export function Composer({
             {can.media && (
               <>
                 <DropdownMenuItem onClick={() => imageInputRef.current?.click()}>
-                  <ImageIcon className="mr-2 size-4" /> Photo
+                  <ImageIcon className="mr-2 size-4" /> Foto
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => docInputRef.current?.click()}>
-                  <FileText className="mr-2 size-4" /> Document
+                  <FileText className="mr-2 size-4" /> Documento
                 </DropdownMenuItem>
               </>
             )}
             {can.poll && (
               <DropdownMenuItem onClick={() => setPollOpen(true)}>
-                <BarChart3 className="mr-2 size-4" /> Poll
+                <BarChart3 className="mr-2 size-4" /> Encuesta
               </DropdownMenuItem>
             )}
             <DropdownMenuItem onClick={() => setLocOpen(true)}>
-              <MapPin className="mr-2 size-4" /> Location
+              <MapPin className="mr-2 size-4" /> Ubicación
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setContactOpen(true)}>
-              <Contact className="mr-2 size-4" /> Contact
+              <Contact className="mr-2 size-4" /> Contacto
             </DropdownMenuItem>
             {can.interactive && (
               <>
                 <DropdownMenuItem onClick={() => setBtnOpen(true)}>
-                  <MousePointerClick className="mr-2 size-4" /> Buttons
+                  <MousePointerClick className="mr-2 size-4" /> Botones
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setListOpen(true)}>
-                  <List className="mr-2 size-4" /> List
+                  <List className="mr-2 size-4" /> Lista
                 </DropdownMenuItem>
               </>
             )}
             {can.template && (
               <DropdownMenuItem onClick={() => void openTemplate()}>
-                <LayoutTemplate className="mr-2 size-4" /> Template
+                <LayoutTemplate className="mr-2 size-4" /> Plantilla
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
@@ -376,9 +376,9 @@ export function Composer({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-72">
             <DropdownMenuGroup>
-              <DropdownMenuLabel>Quick replies</DropdownMenuLabel>
+              <DropdownMenuLabel>Respuestas rápidas</DropdownMenuLabel>
               {savedReplies.length === 0 && (
-                <div className="px-2 py-1.5 text-xs text-muted-foreground">No quick replies yet.</div>
+                <div className="px-2 py-1.5 text-xs text-muted-foreground">Aún no hay respuestas rápidas.</div>
               )}
               {savedReplies.map((r, i) => (
                 <DropdownMenuItem key={`${r}-${i}`} onClick={() => setText((t) => (t ? `${t} ${r}` : r))} className="whitespace-normal text-xs">
@@ -386,7 +386,7 @@ export function Composer({
                 </DropdownMenuItem>
               ))}
               <DropdownMenuItem onClick={openManage} className="text-xs font-medium text-primary">
-                <Pencil className="mr-2 size-3.5" /> Manage quick replies
+                <Pencil className="mr-2 size-3.5" /> Gestionar respuestas rápidas
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
@@ -397,9 +397,9 @@ export function Composer({
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder={
-            sessionOffline ? "Session offline…"
-            : attachment?.kind === "image" ? "Add a caption…  (Enter to send)"
-            : "Type a reply…  (Enter to send, Shift+Enter for newline)"
+            sessionOffline ? "Sesión desconectada…"
+            : attachment?.kind === "image" ? "Agrega una descripción…  (Enter para enviar)"
+            : "Escribe una respuesta…  (Enter para enviar, Shift+Enter para salto de línea)"
           }
           disabled={sessionOffline}
           rows={1}
@@ -419,23 +419,23 @@ export function Composer({
       <Dialog open={pollOpen} onOpenChange={setPollOpen}>
         <DialogContent showCloseButton className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Create poll</DialogTitle>
+            <DialogTitle>Crear encuesta</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="poll-q">Question</Label>
-              <Input id="poll-q" value={pollName} maxLength={255} placeholder="Ask something…" onChange={(e) => setPollName(e.target.value)} />
+              <Label htmlFor="poll-q">Pregunta</Label>
+              <Input id="poll-q" value={pollName} maxLength={255} placeholder="Pregunta algo…" onChange={(e) => setPollName(e.target.value)} />
             </div>
             <div className="flex flex-col gap-2">
-              <Label>Options</Label>
+              <Label>Opciones</Label>
               {pollOptions.map((opt, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <Input
-                    value={opt} maxLength={100} placeholder={`Option ${i + 1}`}
+                    value={opt} maxLength={100} placeholder={`Opción ${i + 1}`}
                     onChange={(e) => setPollOptions((p) => p.map((o, j) => (j === i ? e.target.value : o)))}
                   />
                   {pollOptions.length > 2 && (
-                    <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setPollOptions((p) => p.filter((_, j) => j !== i))} title="Remove option">
+                    <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setPollOptions((p) => p.filter((_, j) => j !== i))} title="Quitar opción">
                       <Trash2 className="size-4" />
                     </Button>
                   )}
@@ -443,18 +443,18 @@ export function Composer({
               ))}
               {pollOptions.length < 12 && (
                 <Button variant="outline" size="sm" className="self-start" onClick={() => setPollOptions((p) => [...p, ""])}>
-                  <Plus className="mr-1 size-4" /> Add option
+                  <Plus className="mr-1 size-4" /> Agregar opción
                 </Button>
               )}
             </div>
             <label className="flex cursor-pointer items-center justify-between rounded-md border p-2.5">
-              <span className="text-sm text-foreground">Allow multiple answers</span>
+              <span className="text-sm text-foreground">Permitir múltiples respuestas</span>
               <Switch checked={pollMulti} onCheckedChange={(v) => setPollMulti(!!v)} />
             </label>
           </div>
           <DialogFooter>
             <Button onClick={() => void sendPoll()} disabled={pollSending}>
-              {pollSending ? "Sending…" : "Send poll"}
+              {pollSending ? "Enviando…" : "Enviar encuesta"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -463,29 +463,29 @@ export function Composer({
       {/* Location */}
       <Dialog open={locOpen} onOpenChange={setLocOpen}>
         <DialogContent showCloseButton className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Send location</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Enviar ubicación</DialogTitle></DialogHeader>
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="loc-lat">Latitude</Label>
+                <Label htmlFor="loc-lat">Latitud</Label>
                 <Input id="loc-lat" value={lat} placeholder="24.8607" onChange={(e) => setLat(e.target.value)} />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="loc-lng">Longitude</Label>
+                <Label htmlFor="loc-lng">Longitud</Label>
                 <Input id="loc-lng" value={lng} placeholder="67.0011" onChange={(e) => setLng(e.target.value)} />
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="loc-name">Name <span className="text-zinc-400 font-light">(optional)</span></Label>
-              <Input id="loc-name" value={locName} maxLength={255} placeholder="Office" onChange={(e) => setLocName(e.target.value)} />
+              <Label htmlFor="loc-name">Nombre <span className="text-zinc-400 font-light">(opcional)</span></Label>
+              <Input id="loc-name" value={locName} maxLength={255} placeholder="Oficina" onChange={(e) => setLocName(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="loc-addr">Address <span className="text-zinc-400 font-light">(optional)</span></Label>
+              <Label htmlFor="loc-addr">Dirección <span className="text-zinc-400 font-light">(opcional)</span></Label>
               <Input id="loc-addr" value={locAddr} maxLength={512} placeholder="Street, City" onChange={(e) => setLocAddr(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={() => void sendLocation()} disabled={extraSending}>{extraSending ? "Sending…" : "Send location"}</Button>
+            <Button onClick={() => void sendLocation()} disabled={extraSending}>{extraSending ? "Enviando…" : "Enviar ubicación"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -493,19 +493,19 @@ export function Composer({
       {/* Contact */}
       <Dialog open={contactOpen} onOpenChange={setContactOpen}>
         <DialogContent showCloseButton className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Send contact</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Enviar contacto</DialogTitle></DialogHeader>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="c-name">Name</Label>
-              <Input id="c-name" value={cName} maxLength={100} placeholder="John Doe" onChange={(e) => setCName(e.target.value)} />
+              <Label htmlFor="c-name">Nombre</Label>
+              <Input id="c-name" value={cName} maxLength={100} placeholder="Juan Pérez" onChange={(e) => setCName(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="c-phone">Phone number</Label>
+              <Label htmlFor="c-phone">Número de teléfono</Label>
               <Input id="c-phone" value={cPhone} maxLength={30} placeholder="+1 415 555 2671" onChange={(e) => setCPhone(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={() => void sendContact()} disabled={extraSending}>{extraSending ? "Sending…" : "Send contact"}</Button>
+            <Button onClick={() => void sendContact()} disabled={extraSending}>{extraSending ? "Enviando…" : "Enviar contacto"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -513,33 +513,33 @@ export function Composer({
       {/* Buttons */}
       <Dialog open={btnOpen} onOpenChange={setBtnOpen}>
         <DialogContent showCloseButton className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Reply buttons</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Botones de respuesta</DialogTitle></DialogHeader>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="btn-body">Message text</Label>
-              <Textarea id="btn-body" value={btnBody} maxLength={1024} rows={2} placeholder="What would you like to do?" onChange={(e) => setBtnBody(e.target.value)} />
+              <Label htmlFor="btn-body">Texto del mensaje</Label>
+              <Textarea id="btn-body" value={btnBody} maxLength={1024} rows={2} placeholder="¿Qué te gustaría hacer?" onChange={(e) => setBtnBody(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="btn-footer">Footer <span className="text-zinc-400 font-light">(optional)</span></Label>
-              <Input id="btn-footer" value={btnFooter} maxLength={60} placeholder="Powered by WaSphere" onChange={(e) => setBtnFooter(e.target.value)} />
+              <Label htmlFor="btn-footer">Pie de página <span className="text-zinc-400 font-light">(opcional)</span></Label>
+              <Input id="btn-footer" value={btnFooter} maxLength={60} placeholder="Powered by BChat" onChange={(e) => setBtnFooter(e.target.value)} />
             </div>
             <div className="flex flex-col gap-2">
-              <Label>Buttons (1–3)</Label>
+              <Label>Botones (1–3)</Label>
               {btns.map((b, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <Input value={b} maxLength={20} placeholder={`Button ${i + 1}`} onChange={(e) => setBtns((p) => p.map((x, j) => (j === i ? e.target.value : x)))} />
+                  <Input value={b} maxLength={20} placeholder={`Botón ${i + 1}`} onChange={(e) => setBtns((p) => p.map((x, j) => (j === i ? e.target.value : x)))} />
                   {btns.length > 1 && (
-                    <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setBtns((p) => p.filter((_, j) => j !== i))} title="Remove"><Trash2 className="size-4" /></Button>
+                    <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setBtns((p) => p.filter((_, j) => j !== i))} title="Quitar"><Trash2 className="size-4" /></Button>
                   )}
                 </div>
               ))}
               {btns.length < 3 && (
-                <Button variant="outline" size="sm" className="self-start" onClick={() => setBtns((p) => [...p, ""])}><Plus className="mr-1 size-4" /> Add button</Button>
+                <Button variant="outline" size="sm" className="self-start" onClick={() => setBtns((p) => [...p, ""])}><Plus className="mr-1 size-4" /> Agregar botón</Button>
               )}
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={() => void sendButtons()} disabled={extraSending}>{extraSending ? "Sending…" : "Send buttons"}</Button>
+            <Button onClick={() => void sendButtons()} disabled={extraSending}>{extraSending ? "Enviando…" : "Enviar botones"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -547,40 +547,40 @@ export function Composer({
       {/* List */}
       <Dialog open={listOpen} onOpenChange={setListOpen}>
         <DialogContent showCloseButton className="sm:max-w-md">
-          <DialogHeader><DialogTitle>List message</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Mensaje de lista</DialogTitle></DialogHeader>
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="list-header">Header <span className="text-zinc-400 font-light">(optional)</span></Label>
-                <Input id="list-header" value={listHeader} maxLength={60} placeholder="Menu" onChange={(e) => setListHeader(e.target.value)} />
+                <Label htmlFor="list-header">Encabezado <span className="text-zinc-400 font-light">(opcional)</span></Label>
+                <Input id="list-header" value={listHeader} maxLength={60} placeholder="Menú" onChange={(e) => setListHeader(e.target.value)} />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="list-btn">Button label</Label>
-                <Input id="list-btn" value={listBtn} maxLength={20} placeholder="View options" onChange={(e) => setListBtn(e.target.value)} />
+                <Label htmlFor="list-btn">Etiqueta del botón</Label>
+                <Input id="list-btn" value={listBtn} maxLength={20} placeholder="Ver opciones" onChange={(e) => setListBtn(e.target.value)} />
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="list-body">Message text</Label>
-              <Textarea id="list-body" value={listBody} maxLength={1024} rows={2} placeholder="Choose an option below" onChange={(e) => setListBody(e.target.value)} />
+              <Label htmlFor="list-body">Texto del mensaje</Label>
+              <Textarea id="list-body" value={listBody} maxLength={1024} rows={2} placeholder="Elige una opción a continuación" onChange={(e) => setListBody(e.target.value)} />
             </div>
             <div className="flex flex-col gap-2">
-              <Label>Items (1–10)</Label>
+              <Label>Elementos (1–10)</Label>
               {listRows.map((r, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <Input value={r.title} maxLength={24} placeholder={`Item ${i + 1} title`} onChange={(e) => setListRows((p) => p.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))} />
-                  <Input value={r.description} maxLength={72} placeholder="Description (optional)" onChange={(e) => setListRows((p) => p.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))} />
+                  <Input value={r.title} maxLength={24} placeholder={`Elemento ${i + 1} título`} onChange={(e) => setListRows((p) => p.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))} />
+                  <Input value={r.description} maxLength={72} placeholder="Descripción (opcional)" onChange={(e) => setListRows((p) => p.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))} />
                   {listRows.length > 1 && (
-                    <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setListRows((p) => p.filter((_, j) => j !== i))} title="Remove"><Trash2 className="size-4" /></Button>
+                    <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setListRows((p) => p.filter((_, j) => j !== i))} title="Quitar"><Trash2 className="size-4" /></Button>
                   )}
                 </div>
               ))}
               {listRows.length < 10 && (
-                <Button variant="outline" size="sm" className="self-start" onClick={() => setListRows((p) => [...p, { title: "", description: "" }])}><Plus className="mr-1 size-4" /> Add item</Button>
+                <Button variant="outline" size="sm" className="self-start" onClick={() => setListRows((p) => [...p, { title: "", description: "" }])}><Plus className="mr-1 size-4" /> Agregar elemento</Button>
               )}
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={() => void sendList()} disabled={extraSending}>{extraSending ? "Sending…" : "Send list"}</Button>
+            <Button onClick={() => void sendList()} disabled={extraSending}>{extraSending ? "Enviando…" : "Enviar lista"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -588,20 +588,20 @@ export function Composer({
       {/* Template (Meta) */}
       <Dialog open={tplOpen} onOpenChange={setTplOpen}>
         <DialogContent showCloseButton className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Send template</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Enviar plantilla</DialogTitle></DialogHeader>
           <div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto">
             {tplLoading ? (
-              <p className="text-sm text-muted-foreground">Loading templates…</p>
+              <p className="text-sm text-muted-foreground">Cargando plantillas…</p>
             ) : !tplSel ? (
               <>
                 <button
                   onClick={() => setTplBuilderOpen(true)}
                   className="flex items-center gap-1.5 self-start rounded-md border border-dashed border-input px-3 py-1.5 text-xs font-medium text-primary transition hover:bg-muted/40"
                 >
-                  <Plus className="size-3.5" /> New template
+                  <Plus className="size-3.5" /> Nueva plantilla
                 </button>
                 {tplList.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No approved templates found for this number.</p>
+                  <p className="text-sm text-muted-foreground">No se encontraron plantillas aprobadas para este número.</p>
                 ) : (
                   <div className="flex flex-col gap-1.5">
                     {tplList.map((t) => (
@@ -629,13 +629,13 @@ export function Composer({
                     <Input id={`tpl-${i}`} value={v} onChange={(e) => setTplParams((p) => p.map((x, j) => (j === i ? e.target.value : x)))} />
                   </div>
                 ))}
-                <button onClick={() => setTplSel(null)} className="self-start text-xs text-primary underline">← Back to list</button>
+                <button onClick={() => setTplSel(null)} className="self-start text-xs text-primary underline">← Volver a la lista</button>
               </div>
             )}
           </div>
           {tplSel && (
             <DialogFooter>
-              <Button onClick={() => void sendTemplate()} disabled={extraSending}>{extraSending ? "Sending…" : "Send template"}</Button>
+              <Button onClick={() => void sendTemplate()} disabled={extraSending}>{extraSending ? "Enviando…" : "Enviar plantilla"}</Button>
             </DialogFooter>
           )}
         </DialogContent>
@@ -653,7 +653,7 @@ export function Composer({
       <Dialog open={manageOpen} onOpenChange={setManageOpen}>
         <DialogContent showCloseButton className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Quick replies</DialogTitle>
+            <DialogTitle>Respuestas rápidas</DialogTitle>
           </DialogHeader>
           <div className="flex max-h-72 flex-col gap-2 overflow-y-auto">
             {draftReplies.map((r, i) => (
@@ -661,21 +661,21 @@ export function Composer({
                 <Input
                   value={r}
                   maxLength={1000}
-                  placeholder="Type a quick reply…"
+                  placeholder="Escribe una respuesta rápida…"
                   onChange={(e) => setDraftReplies((p) => p.map((x, j) => (j === i ? e.target.value : x)))}
                   className="text-xs"
                 />
-                <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setDraftReplies((p) => p.filter((_, j) => j !== i))} title="Delete">
+                <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setDraftReplies((p) => p.filter((_, j) => j !== i))} title="Eliminar">
                   <Trash2 className="size-4" />
                 </Button>
               </div>
             ))}
             <Button variant="outline" size="sm" className="self-start" onClick={() => setDraftReplies((p) => [...p, ""])}>
-              <Plus className="mr-1 size-4" /> Add reply
+              <Plus className="mr-1 size-4" /> Agregar respuesta
             </Button>
           </div>
           <DialogFooter>
-            <Button onClick={saveManage}>Save</Button>
+            <Button onClick={saveManage}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

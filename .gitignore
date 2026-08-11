@@ -24,11 +24,17 @@ npm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+fix-ports.ps1
+
+# AI coding assistants (not part of the project)
+.agents/
+.codex/
+.kilo/
+.claude/
 
 # ─── INTERNAL DOCS — NEVER COMMIT TO PUBLIC REPO (NO EXCEPTIONS) ───
 # Design docs, PRDs, strategy, roadmaps, competitive analysis stay LOCAL only.
 # See CLAUDE.md "Public Repo Hygiene". Public-facing docs go in README/CHANGELOG.
-.claude/
 docs/
 /docs/*
 docs/designs/

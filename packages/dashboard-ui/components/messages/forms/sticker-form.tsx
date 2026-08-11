@@ -21,7 +21,7 @@ export function StickerForm({ onSubmit, submitting }: FormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!url.trim()) { setError("Sticker URL or file is required."); return }
+    if (!url.trim()) { setError("Se requiere una URL o archivo de sticker."); return }
     setError("")
     await onSubmit({ url: url.trim() })
   }
@@ -29,9 +29,9 @@ export function StickerForm({ onSubmit, submitting }: FormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex items-center justify-between pb-1">
-        <span className="text-xs text-muted-foreground">Fill in the fields below</span>
+        <span className="text-xs text-muted-foreground">Completa los campos a continuación</span>
         <Button type="button" size="xs" variant="outline" onClick={fillSample}>
-          Fill Sample
+          Rellenar ejemplo
         </Button>
       </div>
       <MediaInput
@@ -39,9 +39,9 @@ export function StickerForm({ onSubmit, submitting }: FormProps) {
         accept="image/webp,image/png,image/gif"
         urlPlaceholder="https://example.com/sticker.webp" error={error}
       />
-      <p className="text-xs text-muted-foreground -mt-2">Server converts to WebP automatically</p>
+      <p className="text-xs text-muted-foreground -mt-2">El servidor lo convierte a WebP automáticamente</p>
       <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Sending…" : "Send Message"}
+        {submitting ? "Enviando…" : "Enviar mensaje"}
       </Button>
     </form>
   )

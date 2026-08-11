@@ -19,7 +19,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Request } from 'express';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CombinedAuthGuard } from '../auth/combined-auth.guard';
+import { ApiKeyPermissionGuard } from '../auth/api-key-permission.guard';
+import { RequiresPermission } from '../auth/requires-permission.decorator';
 import { CapabilityGuard } from '../auth/capability.guard';
 import { RequireCapability } from '../auth/require-capability.decorator';
 import { WebhooksService } from './webhooks.service';
@@ -33,12 +35,13 @@ interface AuthenticatedRequest extends Request {
 @ApiTags('Webhooks')
 @ApiBearerAuth()
 @Controller('workspaces/:workspaceId/webhooks')
-@UseGuards(JwtAuthGuard, CapabilityGuard)
+@UseGuards(CombinedAuthGuard, ApiKeyPermissionGuard, CapabilityGuard)
 @RequireCapability('webhooks')
 export class WebhooksController {
   constructor(private readonly webhooksService: WebhooksService) {}
 
   @Get()
+  @RequiresPermission('webhooks:read')
   @ApiOperation({ summary: 'List all webhooks for a workspace' })
   @ApiParam({ name: 'workspaceId', description: 'Workspace UUID' })
   @ApiResponse({ status: 200, description: 'Array of webhook metadata (no signing secrets)' })
@@ -49,6 +52,7 @@ export class WebhooksController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @RequiresPermission('webhooks:write')
   @ApiOperation({
     summary: 'Create a webhook',
     description:
@@ -67,6 +71,7 @@ export class WebhooksController {
   }
 
   @Patch(':webhookId')
+  @RequiresPermission('webhooks:write')
   @ApiOperation({ summary: 'Update a webhook (name, url, events, active status, retry limit)' })
   @ApiParam({ name: 'workspaceId', description: 'Workspace UUID' })
   @ApiParam({ name: 'webhookId', description: 'Webhook UUID' })
@@ -85,6 +90,7 @@ export class WebhooksController {
 
   @Post(':webhookId/test')
   @HttpCode(HttpStatus.OK)
+  @RequiresPermission('webhooks:write')
   @ApiOperation({
     summary: 'Send a test delivery to a webhook URL',
     description: 'Fires a webhook.test event immediately and returns the HTTP status from the receiver.',
@@ -104,6 +110,7 @@ export class WebhooksController {
 
   @Delete(':webhookId')
   @HttpCode(HttpStatus.OK)
+  @RequiresPermission('webhooks:delete')
   @ApiOperation({ summary: 'Permanently delete a webhook' })
   @ApiParam({ name: 'workspaceId', description: 'Workspace UUID' })
   @ApiParam({ name: 'webhookId', description: 'Webhook UUID' })

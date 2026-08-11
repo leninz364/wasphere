@@ -16,7 +16,7 @@ export function ApiError({ message, onRetry }: ApiErrorProps) {
           className="mt-2 border-destructive/30 text-destructive hover:bg-destructive/10"
           onClick={onRetry}
         >
-          Try again
+          Intentar de nuevo
         </Button>
       )}
     </div>

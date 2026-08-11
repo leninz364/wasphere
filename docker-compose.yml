@@ -111,7 +111,16 @@ services:
     restart: unless-stopped
     environment:
       DASHBOARD_API_URL: http://dashboard-api:3000
+      # Host/public Admin API address shown in Connections. The UI derives the
+      # host from the browser and combines it with this published port.
+      DASHBOARD_API_PUBLIC_PORT: ${DASHBOARD_API_PORT:-3000}
+      DASHBOARD_API_PUBLIC_URL: ${DASHBOARD_API_PUBLIC_URL:-}
+      DASHBOARD_API_LAN_URL: ${DASHBOARD_API_LAN_URL:-}
+      DASHBOARD_API_TAILSCALE_URL: ${DASHBOARD_API_TAILSCALE_URL:-}
       WA_SERVER_INTERNAL_URL: http://wa-server:3001
+      # Mirrors the WA Server feature flag so the New-Session dialog can show
+      # whether Meta setup is actually available before accepting credentials.
+      META_PROVIDER_ENABLED: ${META_PROVIDER_ENABLED:-false}
       # Public URL of the WA Server (only for the Meta webhook callback shown in
       # the New-Session dialog). Leave empty unless you expose the Meta webhook.
       WA_SERVER_PUBLIC_URL: ${WA_SERVER_PUBLIC_URL:-}

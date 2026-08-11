@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import { serverPost } from "@/lib/server-fetch";
-
-const SECURE = process.env.NODE_ENV === "production";
+import { setAuthCookies } from "@/lib/auth-cookies";
 
 export async function POST(request: Request) {
   let body: { email: string; password: string };
@@ -26,23 +25,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const cookieStore = await cookies();
-
-  cookieStore.set("wa_access", data.accessToken, {
-    httpOnly: true,
-    secure: SECURE,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 900,
-  });
-
-  cookieStore.set("wa_refresh", data.refreshToken, {
-    httpOnly: true,
-    secure: SECURE,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 604800,
-  });
+  setAuthCookies(await cookies(), data.accessToken, data.refreshToken);
 
   return Response.json({ user: data.user });
 }

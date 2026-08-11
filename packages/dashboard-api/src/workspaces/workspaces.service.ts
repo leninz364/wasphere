@@ -13,6 +13,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EncryptionService } from './encryption.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { SetWaServerDto } from './dto/set-wa-server.dto';
+import { UpdateChatRetentionDto } from './dto/update-chat-retention.dto';
 import { GetAuditLogsQueryDto } from './dto/get-audit-logs-query.dto';
 
 @Injectable()
@@ -114,16 +115,25 @@ export class WorkspacesService implements OnApplicationBootstrap {
       waServerUrl: w.waServerUrl,
       waServerConfigured: w.waServerToken !== null,
       logo: w.logo,
+      nameStyle: w.nameStyle,
+      chatRetentionResolvedDays: w.chatRetentionResolvedDays,
+      chatRetentionArchivedDays: w.chatRetentionArchivedDays,
       createdAt: w.createdAt,
       updatedAt: w.updatedAt,
     };
   }
 
-  /** Update dashboard branding (custom logo, name). Owner-only. */
+  /** Update dashboard branding (custom logo, name, name style). Owner-only. */
   async updateBranding(
     userId: string,
     workspaceId: string,
-    dto: { logo?: string | null; name?: string },
+    dto: {
+      logo?: string | null;
+      name?: string;
+      nameColor?: string;
+      nameSize?: string;
+      nameFont?: string;
+    },
   ) {
     await this.requireOwner(userId, workspaceId);
 
@@ -138,6 +148,25 @@ export class WorkspacesService implements OnApplicationBootstrap {
       } else {
         throw new BadRequestException('logo must be a base64 image data URI (png/jpeg/webp/svg/gif)');
       }
+    }
+
+    // Sidebar name style — merge with the stored value so each field can be
+    // changed on its own. Empty string resets that field to the theme default.
+    if (dto.nameColor !== undefined || dto.nameSize !== undefined || dto.nameFont !== undefined) {
+      const w = await this.prisma.workspace.findUniqueOrThrow({
+        where: { id: workspaceId },
+        select: { nameStyle: true },
+      });
+      const style = { ...((w.nameStyle as Record<string, string> | null) ?? {}) };
+      const apply = (key: 'color' | 'size' | 'font', value?: string) => {
+        if (value === undefined) return;
+        if (value === '') delete style[key];
+        else style[key] = value;
+      };
+      apply('color', dto.nameColor);
+      apply('size', dto.nameSize);
+      apply('font', dto.nameFont);
+      data.nameStyle = Object.keys(style).length ? style : Prisma.DbNull;
     }
 
     await this.prisma.workspace.update({ where: { id: workspaceId }, data });
@@ -169,6 +198,26 @@ export class WorkspacesService implements OnApplicationBootstrap {
       this.logger.warn(`[SetWaServer] Callback registration failed for workspace ${workspaceId}: ${(err as Error).message}`);
     }
 
+    return { success: true };
+  }
+
+  /** Configure automatic chat retention policies. Owner-only. */
+  async updateChatRetention(
+    userId: string,
+    workspaceId: string,
+    dto: UpdateChatRetentionDto,
+  ) {
+    await this.requireOwner(userId, workspaceId);
+
+    const data: Prisma.WorkspaceUpdateInput = {};
+    if (dto.chatRetentionResolvedDays !== undefined) {
+      data.chatRetentionResolvedDays = dto.chatRetentionResolvedDays ?? null;
+    }
+    if (dto.chatRetentionArchivedDays !== undefined) {
+      data.chatRetentionArchivedDays = dto.chatRetentionArchivedDays ?? null;
+    }
+
+    await this.prisma.workspace.update({ where: { id: workspaceId }, data });
     return { success: true };
   }
 

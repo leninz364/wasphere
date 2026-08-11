@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Switch } from "@/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -46,7 +45,6 @@ export function ApiKeyEditDialog({ apiKey, open, onClose, onUpdated }: ApiKeyEdi
   const [selectedPerms, setSelectedPerms] = React.useState<string[]>([])
   const [wildcard, setWildcard] = React.useState(false)
   const [sessionId, setSessionId] = React.useState("__all__")
-  const [isActive, setIsActive] = React.useState(true)
   const [sessions, setSessions] = React.useState<Session[]>([])
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -55,7 +53,6 @@ export function ApiKeyEditDialog({ apiKey, open, onClose, onUpdated }: ApiKeyEdi
   React.useEffect(() => {
     if (!apiKey) return
     setName(apiKey.name)
-    setIsActive(apiKey.isActive)
     const perms = apiKey.permissions
     if (perms.length === 1 && perms[0] === "*") {
       setWildcard(true)
@@ -92,14 +89,13 @@ export function ApiKeyEditDialog({ apiKey, open, onClose, onUpdated }: ApiKeyEdi
     if (!apiKey) return
     setError(null)
     const perms = wildcard ? ["*"] : selectedPerms
-    if (perms.length === 0) { setError("Select at least one permission."); return }
+    if (perms.length === 0) { setError("Selecciona al menos un permiso."); return }
 
     setSubmitting(true)
     try {
       const body: Record<string, unknown> = {
         name: name.trim(),
         permissions: perms,
-        isActive,
         sessionId: sessionId === "__all__" ? null : sessionId,
       }
       const res = await fetch(`/api/developer/api-keys/${apiKey.id}`, {
@@ -111,14 +107,14 @@ export function ApiKeyEditDialog({ apiKey, open, onClose, onUpdated }: ApiKeyEdi
       if (!res.ok) {
         const msg = Array.isArray(data.message)
           ? (data.message as string[]).join("\n")
-          : (data.message ?? "Failed to update key.")
+          : (data.message ?? "No se pudo actualizar la clave.")
         setError(msg)
         return
       }
       onUpdated(data as ApiKey)
       onClose()
     } catch {
-      setError("Could not reach the server.")
+      setError("No se pudo comunicar con el servidor.")
     } finally {
       setSubmitting(false)
     }
@@ -130,19 +126,19 @@ export function ApiKeyEditDialog({ apiKey, open, onClose, onUpdated }: ApiKeyEdi
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent showCloseButton className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit API Key</DialogTitle>
+          <DialogTitle>Editar clave de API</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {/* Key prefix (read-only) */}
           <div className="flex flex-col gap-1.5">
-            <Label className="text-sm font-medium text-foreground">Key Prefix</Label>
+            <Label className="text-sm font-medium text-foreground">Prefijo de clave</Label>
             <Input value={apiKey.keyPrefix} readOnly className="font-mono text-xs text-zinc-500" />
           </div>
 
           {/* Name */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="edit-name" className="text-sm font-medium text-foreground">Name</Label>
+            <Label htmlFor="edit-name" className="text-sm font-medium text-foreground">Nombre</Label>
             <Input
               id="edit-name"
               value={name}
@@ -153,26 +149,20 @@ export function ApiKeyEditDialog({ apiKey, open, onClose, onUpdated }: ApiKeyEdi
             />
           </div>
 
-          {/* Active toggle */}
-          <div className="flex items-center justify-between">
-            <Label htmlFor="edit-active" className="text-sm font-medium text-foreground">Active</Label>
-            <Switch
-              id="edit-active"
-              checked={isActive}
-              onCheckedChange={setIsActive}
-            />
-          </div>
+          <p className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+            Esta clave es permanente y solo se desactiva al eliminarla.
+          </p>
 
           {/* Permissions */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium text-foreground">Permissions</Label>
+              <Label className="text-sm font-medium text-foreground">Permisos</Label>
               <label className="flex items-center gap-1.5 cursor-pointer select-none">
                 <Checkbox
                   checked={wildcard}
                   onCheckedChange={(v) => handleWildcard(v === true)}
                 />
-                <span className="text-xs text-zinc-700 dark:text-zinc-300">All (*)</span>
+                <span className="text-xs text-zinc-700 dark:text-zinc-300">Todas (*)</span>
               </label>
             </div>
             <div className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-lg border p-3">
@@ -201,15 +191,15 @@ export function ApiKeyEditDialog({ apiKey, open, onClose, onUpdated }: ApiKeyEdi
           {/* Session scope */}
           <div className="flex flex-col gap-1.5">
             <Label className="text-sm font-medium text-foreground">
-              Session Scope
-              <span className="ml-1 text-zinc-400 font-light">(optional)</span>
+              Alcance de sesión
+              <span className="ml-1 text-zinc-400 font-light">(opcional)</span>
             </Label>
             <Select value={sessionId} onValueChange={(v) => setSessionId(v ?? "__all__")}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__all__">All sessions</SelectItem>
+                <SelectItem value="__all__">Todas las sesiones</SelectItem>
                 {sessions.map((s) => (
                   <SelectItem key={s.id} value={s.id}>{s.id}</SelectItem>
                 ))}
@@ -221,7 +211,7 @@ export function ApiKeyEditDialog({ apiKey, open, onClose, onUpdated }: ApiKeyEdi
 
           <DialogFooter showCloseButton>
             <Button type="submit" disabled={submitting}>
-              {submitting ? "Saving…" : "Save Changes"}
+              {submitting ? "Guardando…" : "Guardar cambios"}
             </Button>
           </DialogFooter>
         </form>

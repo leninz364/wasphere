@@ -8,5 +8,11 @@ export const dynamic = "force-dynamic"
 
 export function GET() {
   const base = (process.env.WA_SERVER_PUBLIC_URL ?? "").replace(/\/+$/, "")
-  return Response.json({ base: base || null })
+  const enabled = process.env.META_PROVIDER_ENABLED === "true"
+  const publicHttps = base.startsWith("https://")
+  return Response.json({
+    base: base || null,
+    enabled,
+    ready: enabled && publicHttps,
+  })
 }

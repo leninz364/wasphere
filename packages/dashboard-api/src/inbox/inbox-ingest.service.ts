@@ -39,6 +39,7 @@ function previewFor(type: string, body: string | null): string {
     image: '📷 Photo', video: '🎥 Video', audio: '🎙️ Voice note',
     document: '📄 Document', sticker: '🌟 Sticker', location: '📍 Location',
     contact: '👤 Contact', poll: '📊 Poll', reaction: '👍 Reaction',
+    call: '📞 Llamada rechazada',
   };
   return labels[type] ?? type;
 }
@@ -108,6 +109,8 @@ export class InboxIngestService {
         return this.ingestInbound(workspaceId, dto);
       case 'message.sent':
         return this.ingestOutbound(workspaceId, dto);
+      case 'call.rejected':
+        return this.ingestCallRejected(workspaceId, dto);
       case 'messages.update':
         return this.applyStatusUpdates(workspaceId, dto);
       case 'session.deleted':
@@ -144,6 +147,9 @@ export class InboxIngestService {
     const senderPn: string | undefined = data.senderPn ?? m?.key?.senderPn ?? undefined;
     const isLid = rawJid.endsWith('@lid');
     const jid: string = data.senderJid ?? (isLid && senderPn ? senderPn : rawJid);
+    // Remember the LID so outbound sends addressed to it (e.g. an agent echoing
+    // the raw `from` field) resolve back to this contact.
+    const senderLid: string | null = data.senderLid ?? (isLid ? rawJid : null);
 
     const fromMe = Boolean(m?.key?.fromMe);
     const pushName: string | null = (m?.pushName as string) ?? null;
@@ -188,8 +194,9 @@ export class InboxIngestService {
         update: {
           ...(pushName ? { whatsappName: pushName } : {}),
           ...(avatarUrl ? { avatarUrl } : {}),
+          ...(senderLid ? { lid: senderLid } : {}),
         },
-        create: { workspaceId, jid, phone, whatsappName: pushName, avatarUrl },
+        create: { workspaceId, jid, phone, whatsappName: pushName, avatarUrl, lid: senderLid },
       });
 
       const convo = await tx.conversation.upsert({
@@ -220,6 +227,11 @@ export class InboxIngestService {
         },
       });
 
+      // A fresh inbound on a closed chat re-opens the attention cycle: back to
+      // PENDIENTE and re-assigned to the AI bot (always the first responder).
+      const reopens =
+        !fromMe && (convo.attention === 'ATENDIDO' || convo.attention === 'SOLUCIONADO');
+
       await tx.conversation.update({
         where: { id: convo.id },
         data: {
@@ -228,9 +240,27 @@ export class InboxIngestService {
           lastMessageAt: waTimestamp > convo.lastMessageAt ? waTimestamp : convo.lastMessageAt,
           // a live message proves the session is back — clear any stale archive flag
           ...(convo.sessionDeletedAt ? { sessionDeletedAt: null } : {}),
+          // a fresh inbound resurfaces a soft-deleted (archived) chat so real
+          // customer messages are never silently hidden
+          ...(!fromMe && convo.archivedAt ? { archivedAt: null, archivedByUserId: null } : {}),
           ...(fromMe ? {} : { unreadCount: { increment: 1 } }),
+          ...(reopens
+            ? { attention: 'PENDIENTE', status: 'OPEN', assignedToUserId: null, assignedAt: null, resolvedAt: null }
+            : {}),
         },
       });
+
+      if (reopens) {
+        await tx.conversationEvent.create({
+          data: {
+            workspaceId,
+            conversationId: convo.id,
+            actorUserId: null, // system/bot
+            type: 'reopened',
+            detail: { from: convo.attention, previousUserId: convo.assignedToUserId },
+          },
+        });
+      }
 
       return convo.id;
     });
@@ -261,11 +291,21 @@ export class InboxIngestService {
     const waTimestamp = new Date(toUnixSeconds(data.timestamp) * 1000);
 
     const conversationId = await this.prisma.$transaction(async (tx) => {
-      const contact = await tx.contact.upsert({
-        where: { workspaceId_jid: { workspaceId, jid } },
-        update: {},
-        create: { workspaceId, jid, phone },
-      });
+      // LID addressing: a send targeted at an opaque "<id>@lid" (e.g. an agent
+      // replying to the raw `from` of an inbound event) belongs to the real
+      // contact that owns that LID — resolve it so the message lands in the
+      // existing thread instead of spawning a phantom contact. Falls back to a
+      // lid-keyed contact only when no mapping has been learned yet.
+      const byLid = jid.endsWith('@lid')
+        ? await tx.contact.findFirst({ where: { workspaceId, lid: jid } })
+        : null;
+      const contact =
+        byLid ??
+        (await tx.contact.upsert({
+          where: { workspaceId_jid: { workspaceId, jid } },
+          update: {},
+          create: { workspaceId, jid, phone },
+        }));
       const convo = await tx.conversation.upsert({
         where: { workspaceId_sessionId_contactId: { workspaceId, sessionId: dto.sessionId, contactId: contact.id } },
         update: {},
@@ -301,6 +341,106 @@ export class InboxIngestService {
 
     // A delivery status may have raced ahead of this row — apply it now.
     await this.applyPendingStatus(workspaceId, waMessageId);
+    this.events.emit({ type: 'message.new', workspaceId, conversationId });
+  }
+
+  // A rejected incoming call (wa-server auto-rejects; the caller also gets an
+  // auto-reply, mirrored separately via message.sent). Logged as an INBOUND
+  // system message so the attempt is visible and the chat re-opens for follow-up.
+  private async ingestCallRejected(workspaceId: string, dto: WebhookEventDto): Promise<void> {
+    const data = dto.data as Record<string, any>;
+    const rawFrom: string | undefined = data.from;
+    const callId: string | undefined = data.callId;
+    if (!rawFrom || !callId) return;
+
+    // 1:1 inbox only (mirror of the inbound guard).
+    if (rawFrom.endsWith('@g.us') || rawFrom.endsWith('@broadcast') || rawFrom.endsWith('@newsletter')) {
+      return;
+    }
+
+    const jidFromNumber = String(rawFrom).includes('@')
+      ? String(rawFrom)
+      : `${String(rawFrom).replace(/[^0-9]/g, '')}@s.whatsapp.net`;
+    const isVideo = Boolean(data.isVideo);
+    const body = isVideo ? '📞 Videollamada rechazada automáticamente' : '📞 Llamada rechazada automáticamente';
+    // Synthetic, stable id so repeated deliveries of the same call are idempotent.
+    const waMessageId = `call:${callId}`;
+    const waTimestamp = new Date(toUnixSeconds(data.timestamp) * 1000);
+
+    const dup = await this.prisma.message.findUnique({
+      where: { workspaceId_waMessageId: { workspaceId, waMessageId } },
+      select: { id: true },
+    });
+    if (dup) return;
+
+    const conversationId = await this.prisma.$transaction(async (tx) => {
+      // Resolve a learned LID mapping first (calls may arrive from an @lid jid).
+      const byLid = jidFromNumber.endsWith('@lid')
+        ? await tx.contact.findFirst({ where: { workspaceId, lid: jidFromNumber } })
+        : null;
+      const phone = jidFromNumber.split('@')[0].replace(/[^0-9]/g, '');
+      const contact =
+        byLid ??
+        (await tx.contact.upsert({
+          where: { workspaceId_jid: { workspaceId, jid: jidFromNumber } },
+          update: {},
+          create: { workspaceId, jid: jidFromNumber, phone },
+        }));
+
+      const convo = await tx.conversation.upsert({
+        where: {
+          workspaceId_sessionId_contactId: { workspaceId, sessionId: dto.sessionId, contactId: contact.id },
+        },
+        update: {},
+        create: { workspaceId, contactId: contact.id, sessionId: dto.sessionId },
+      });
+
+      await tx.message.create({
+        data: {
+          workspaceId,
+          conversationId: convo.id,
+          waMessageId,
+          direction: 'INBOUND',
+          type: 'call',
+          body,
+          payload: { callId, isVideo } as Prisma.InputJsonValue,
+          status: 'DELIVERED',
+          fromMe: false,
+          waTimestamp,
+        },
+      });
+
+      // A call attempt is customer-initiated contact — re-open a closed chat and
+      // bump unread, same as a fresh inbound message.
+      const reopens = convo.attention === 'ATENDIDO' || convo.attention === 'SOLUCIONADO';
+      await tx.conversation.update({
+        where: { id: convo.id },
+        data: {
+          lastPreview: previewFor('call', null),
+          lastMessageAt: waTimestamp > convo.lastMessageAt ? waTimestamp : convo.lastMessageAt,
+          ...(convo.sessionDeletedAt ? { sessionDeletedAt: null } : {}),
+          unreadCount: { increment: 1 },
+          ...(reopens
+            ? { attention: 'PENDIENTE', status: 'OPEN', assignedToUserId: null, assignedAt: null }
+            : {}),
+        },
+      });
+
+      if (reopens) {
+        await tx.conversationEvent.create({
+          data: {
+            workspaceId,
+            conversationId: convo.id,
+            actorUserId: null,
+            type: 'reopened',
+            detail: { from: convo.attention, previousUserId: convo.assignedToUserId },
+          },
+        });
+      }
+
+      return convo.id;
+    });
+
     this.events.emit({ type: 'message.new', workspaceId, conversationId });
   }
 

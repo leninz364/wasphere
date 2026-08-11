@@ -39,15 +39,15 @@ export function ListForm({ onSubmit, submitting }: FormProps) {
   const [errors, setErrors] = React.useState<Record<string, string>>({})
 
   const fillSample = () => {
-    setTitle("WaSphere Menu")
-    setText("Choose an option from the list below:")
-    setButtonText("View Options")
+    setTitle("Menú de BChat")
+    setText("Elige una opción de la siguiente lista:")
+    setButtonText("Ver opciones")
     setSections([
       {
-        title: "Options",
+        title: "Opciones",
         rows: [
-          { id: "row_1", title: "Send Message", description: "Test sending a message" },
-          { id: "row_2", title: "View Sessions", description: "Check connected sessions" },
+          { id: "row_1", title: "Enviar mensaje", description: "Prueba a enviar un mensaje" },
+          { id: "row_2", title: "Ver sesiones", description: "Revisa las sesiones conectadas" },
         ],
       },
     ])
@@ -104,14 +104,14 @@ export function ListForm({ onSubmit, submitting }: FormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const errs: Record<string, string> = {}
-    if (!title.trim()) errs.title = "Title is required."
-    if (!text.trim()) errs.text = "Text is required."
-    if (!buttonText.trim()) errs.buttonText = "Button text is required."
+    if (!title.trim()) errs.title = "El título es obligatorio."
+    if (!text.trim()) errs.text = "El texto es obligatorio."
+    if (!buttonText.trim()) errs.buttonText = "El texto del botón es obligatorio."
     sections.forEach((s, si) => {
-      if (!s.title.trim()) errs[`sec_title_${si}`] = "Section title is required."
+      if (!s.title.trim()) errs[`sec_title_${si}`] = "El título de la sección es obligatorio."
       s.rows.forEach((r, ri) => {
-        if (!r.id.trim()) errs[`row_id_${si}_${ri}`] = "Row ID is required."
-        if (!r.title.trim()) errs[`row_title_${si}_${ri}`] = "Row title is required."
+        if (!r.id.trim()) errs[`row_id_${si}_${ri}`] = "El ID de la fila es obligatorio."
+        if (!r.title.trim()) errs[`row_title_${si}_${ri}`] = "El título de la fila es obligatorio."
       })
     })
     if (Object.keys(errs).length > 0) {
@@ -137,22 +137,22 @@ export function ListForm({ onSubmit, submitting }: FormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex items-center justify-between pb-1">
-        <span className="text-xs text-muted-foreground">Fill in the fields below</span>
+        <span className="text-xs text-muted-foreground">Completa los campos a continuación</span>
         <Button type="button" size="xs" variant="outline" onClick={fillSample}>
-          Fill Sample
+          Rellenar ejemplo
         </Button>
       </div>
       <div className="rounded-lg border border-amber-400/40 bg-amber-50/60 dark:bg-amber-900/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
-        WhatsApp has deprecated interactive list messages for personal accounts. Recipients on newer WhatsApp versions may see plain text instead.
+        WhatsApp descontinuó los mensajes de lista interactivos para cuentas personales. Los destinatarios con versiones más recientes de WhatsApp podrían ver solo texto plano.
       </div>
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
-          <Label htmlFor="list-title">Title</Label>
+          <Label htmlFor="list-title">Título</Label>
           <span className="text-xs text-muted-foreground">{title.length}/60</span>
         </div>
         <Input
           id="list-title"
-          placeholder="Menu title"
+          placeholder="Título del menú"
           value={title}
           maxLength={60}
           onChange={(e) => setTitle(e.target.value)}
@@ -162,12 +162,12 @@ export function ListForm({ onSubmit, submitting }: FormProps) {
 
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
-          <Label htmlFor="list-text">Text</Label>
+          <Label htmlFor="list-text">Texto</Label>
           <span className="text-xs text-muted-foreground">{text.length}/1024</span>
         </div>
         <Textarea
           id="list-text"
-          placeholder="Body message…"
+          placeholder="Cuerpo del mensaje…"
           value={text}
           maxLength={1024}
           onChange={(e) => setText(e.target.value)}
@@ -178,12 +178,12 @@ export function ListForm({ onSubmit, submitting }: FormProps) {
 
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
-          <Label htmlFor="list-btntext">Button Text</Label>
+          <Label htmlFor="list-btntext">Texto del botón</Label>
           <span className="text-xs text-muted-foreground">{buttonText.length}/20</span>
         </div>
         <Input
           id="list-btntext"
-          placeholder="View Options"
+          placeholder="Ver opciones"
           value={buttonText}
           maxLength={20}
           onChange={(e) => setButtonText(e.target.value)}
@@ -194,12 +194,12 @@ export function ListForm({ onSubmit, submitting }: FormProps) {
       </div>
 
       <div className="flex flex-col gap-3">
-        <Label>Sections ({sections.length}/10)</Label>
+        <Label>Secciones ({sections.length}/10)</Label>
         {sections.map((section, si) => (
           <div key={si} className="flex flex-col gap-2 rounded-lg border p-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-muted-foreground">
-                Section {si + 1}
+                Sección {si + 1}
               </span>
               {sections.length > 1 && (
                 <Button
@@ -208,17 +208,17 @@ export function ListForm({ onSubmit, submitting }: FormProps) {
                   variant="destructive"
                   onClick={() => removeSection(si)}
                 >
-                  Remove
+                  Quitar
                 </Button>
               )}
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor={`sec-title-${si}`} className="text-xs">
-                Section Title
+                Título de la sección
               </Label>
               <Input
                 id={`sec-title-${si}`}
-                placeholder="Section name"
+                placeholder="Nombre de la sección"
                 value={section.title}
                 maxLength={24}
                 onChange={(e) => updateSection(si, e.target.value)}
@@ -232,12 +232,12 @@ export function ListForm({ onSubmit, submitting }: FormProps) {
 
             <div className="flex flex-col gap-2 pl-2 border-l-2 border-muted">
               <span className="text-xs text-muted-foreground font-medium">
-                Rows ({section.rows.length}/10)
+                Filas ({section.rows.length}/10)
               </span>
               {section.rows.map((row, ri) => (
                 <div key={ri} className="flex flex-col gap-2 rounded-md bg-muted/30 p-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Row {ri + 1}</span>
+                    <span className="text-xs text-muted-foreground">Fila {ri + 1}</span>
                     {section.rows.length > 1 && (
                       <Button
                         type="button"
@@ -268,11 +268,11 @@ export function ListForm({ onSubmit, submitting }: FormProps) {
                     </div>
                     <div className="flex flex-col gap-1">
                       <Label htmlFor={`row-title-${si}-${ri}`} className="text-xs">
-                        Title
+                        Título
                       </Label>
                       <Input
                         id={`row-title-${si}-${ri}`}
-                        placeholder="Option name"
+                        placeholder="Nombre de la opción"
                         value={row.title}
                         maxLength={24}
                         onChange={(e) => updateRow(si, ri, "title", e.target.value)}
@@ -286,14 +286,14 @@ export function ListForm({ onSubmit, submitting }: FormProps) {
                   </div>
                   <div className="flex flex-col gap-1">
                     <Label htmlFor={`row-desc-${si}-${ri}`} className="text-xs">
-                      Description{" "}
+                      Descripción{" "}
                       <span className="text-muted-foreground font-normal">
-                        (optional)
+                        (opcional)
                       </span>
                     </Label>
                     <Input
                       id={`row-desc-${si}-${ri}`}
-                      placeholder="Optional description"
+                      placeholder="Descripción opcional"
                       value={row.description}
                       maxLength={72}
                       onChange={(e) => updateRow(si, ri, "description", e.target.value)}
@@ -309,7 +309,7 @@ export function ListForm({ onSubmit, submitting }: FormProps) {
                 disabled={section.rows.length >= 10}
                 className="w-fit"
               >
-                + Add Row
+                + Agregar fila
               </Button>
             </div>
           </div>
@@ -322,12 +322,12 @@ export function ListForm({ onSubmit, submitting }: FormProps) {
           disabled={sections.length >= 10}
           className="w-fit"
         >
-          + Add Section
+          + Agregar sección
         </Button>
       </div>
 
       <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Sending…" : "Send Message"}
+        {submitting ? "Enviando…" : "Enviar mensaje"}
       </Button>
     </form>
   )

@@ -63,6 +63,9 @@ export function WebhookEditDialog({ webhook, open, onClose, onUpdated }: Webhook
   const [selectedEvents, setSelectedEvents] = React.useState<string[]>([])
   const [wildcard, setWildcard] = React.useState(false)
   const [isActive, setIsActive] = React.useState(true)
+  const [pauseOnHumanTakeover, setPauseOnHumanTakeover] = React.useState(true)
+  const [useBearerAuth, setUseBearerAuth] = React.useState(false)
+  const [bearerToken, setBearerToken] = React.useState("")
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
@@ -72,6 +75,9 @@ export function WebhookEditDialog({ webhook, open, onClose, onUpdated }: Webhook
     setUrl(webhook.url)
     setUrlError(null)
     setIsActive(webhook.isActive)
+    setPauseOnHumanTakeover(webhook.pauseOnHumanTakeover)
+    setUseBearerAuth(webhook.hasBearerToken)
+    setBearerToken("")
     setError(null)
     if (webhook.events.length === 1 && webhook.events[0] === "*") {
       setWildcard(true)
@@ -86,9 +92,9 @@ export function WebhookEditDialog({ webhook, open, onClose, onUpdated }: Webhook
     if (!val) { setUrlError(null); return }
     try {
       const parsed = new URL(val)
-      setUrlError(parsed.protocol !== "https:" ? "URL must use HTTPS." : null)
+      setUrlError(parsed.protocol !== "https:" ? "La URL debe usar HTTPS." : null)
     } catch {
-      setUrlError("Enter a valid URL.")
+      setUrlError("Ingresa una URL válida.")
     }
   }
 
@@ -106,24 +112,35 @@ export function WebhookEditDialog({ webhook, open, onClose, onUpdated }: Webhook
     setError(null)
     if (urlError) return
     const events = wildcard ? ["*"] : selectedEvents
-    if (events.length === 0) { setError("Select at least one event."); return }
+    if (events.length === 0) { setError("Selecciona al menos un evento."); return }
+    if (useBearerAuth && !webhook.hasBearerToken && !bearerToken.trim()) {
+      setError("Ingresa el token de portador."); return
+    }
 
     setSubmitting(true)
     try {
       const res = await fetch(`/api/webhooks/${webhook.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), url, events, isActive }),
+        body: JSON.stringify({
+          name: name.trim(),
+          url,
+          events,
+          isActive,
+          pauseOnHumanTakeover,
+          ...(bearerToken.trim() && { bearerToken: bearerToken.trim() }),
+          clearBearerToken: !useBearerAuth && webhook.hasBearerToken,
+        }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const msg = Array.isArray(data.message) ? data.message.join("\n") : (data.message ?? "Failed to update webhook.")
+        const msg = Array.isArray(data.message) ? data.message.join("\n") : (data.message ?? "No se pudo actualizar el webhook.")
         setError(msg); return
       }
       onUpdated(data as Webhook)
       onClose()
     } catch {
-      setError("Could not reach the server.")
+      setError("No se pudo comunicar con el servidor.")
     } finally {
       setSubmitting(false)
     }
@@ -135,13 +152,13 @@ export function WebhookEditDialog({ webhook, open, onClose, onUpdated }: Webhook
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent showCloseButton className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit Webhook</DialogTitle>
+          <DialogTitle>Editar Webhook</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {/* Name */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="edit-wh-name" className="text-sm font-medium text-foreground">Name</Label>
+            <Label htmlFor="edit-wh-name" className="text-sm font-medium text-foreground">Nombre</Label>
             <Input
               id="edit-wh-name"
               value={name}
@@ -165,19 +182,68 @@ export function WebhookEditDialog({ webhook, open, onClose, onUpdated }: Webhook
             {urlError && <p className="text-xs text-destructive">{urlError}</p>}
           </div>
 
+          {/* Optional outbound authentication */}
+          <div className="flex flex-col gap-2 rounded-lg border p-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="edit-wh-bearer-enabled" className="text-sm font-medium text-foreground">
+                Autenticación Bearer
+              </Label>
+              <Switch
+                id="edit-wh-bearer-enabled"
+                checked={useBearerAuth}
+                onCheckedChange={setUseBearerAuth}
+              />
+            </div>
+            {useBearerAuth && (
+              <>
+                <Input
+                  id="edit-wh-bearer-token"
+                  type="password"
+                  autoComplete="off"
+                  placeholder={webhook.hasBearerToken ? "Dejar en blanco para mantener el token almacenado" : "Token Bearer del receptor"}
+                  value={bearerToken}
+                  onChange={(e) => setBearerToken(e.target.value)}
+                  maxLength={4096}
+                />
+                <p className="text-xs font-light text-zinc-400">
+                  El token se guarda cifrado y nunca se devuelve al navegador.
+                </p>
+              </>
+            )}
+          </div>
+
           {/* Active toggle */}
           <div className="flex items-center justify-between">
-            <Label htmlFor="edit-wh-active" className="text-sm font-medium text-foreground">Active</Label>
+            <Label htmlFor="edit-wh-active" className="text-sm font-medium text-foreground">Activo</Label>
             <Switch id="edit-wh-active" checked={isActive} onCheckedChange={setIsActive} />
+          </div>
+
+          {/* Hand-off to a human agent */}
+          <div className="flex flex-col gap-2 rounded-lg border p-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="edit-wh-pause" className="text-sm font-medium text-foreground">
+                Pausar cuando atiende un humano
+              </Label>
+              <Switch
+                id="edit-wh-pause"
+                checked={pauseOnHumanTakeover}
+                onCheckedChange={setPauseOnHumanTakeover}
+              />
+            </div>
+            <p className="text-xs font-light text-zinc-400">
+              Deja de enviar los mensajes de un chat en cuanto un agente lo toma (En proceso)
+              o queda reservado para un agente, para que el bot no responda encima. Se reanuda
+              cuando el chat vuelve a estar Pendiente y sin reservar.
+            </p>
           </div>
 
           {/* Events */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium text-foreground">Events</Label>
+              <Label className="text-sm font-medium text-foreground">Eventos</Label>
               <label className="flex items-center gap-1.5 cursor-pointer select-none">
                 <Checkbox checked={wildcard} onCheckedChange={(v) => handleWildcard(v === true)} />
-                <span className="text-xs text-zinc-700 dark:text-zinc-300">All (*)</span>
+                <span className="text-xs text-zinc-700 dark:text-zinc-300">Todos (*)</span>
               </label>
             </div>
             <div className="flex flex-col gap-3 rounded-lg border p-3">
@@ -205,7 +271,7 @@ export function WebhookEditDialog({ webhook, open, onClose, onUpdated }: Webhook
 
           <DialogFooter showCloseButton>
             <Button type="submit" disabled={submitting || !!urlError}>
-              {submitting ? "Saving…" : "Save Changes"}
+              {submitting ? "Guardando…" : "Guardar cambios"}
             </Button>
           </DialogFooter>
         </form>

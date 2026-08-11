@@ -33,10 +33,10 @@ export function LocationForm({ onSubmit, submitting }: FormProps) {
     const lat = parseFloat(latitude)
     const lng = parseFloat(longitude)
     if (latitude.trim() === "" || isNaN(lat) || lat < -90 || lat > 90) {
-      errs.latitude = "Latitude must be a number between -90 and 90."
+      errs.latitude = "La latitud debe ser un número entre -90 y 90."
     }
     if (longitude.trim() === "" || isNaN(lng) || lng < -180 || lng > 180) {
-      errs.longitude = "Longitude must be a number between -180 and 180."
+      errs.longitude = "La longitud debe ser un número entre -180 y 180."
     }
     if (Object.keys(errs).length > 0) {
       setErrors(errs)
@@ -52,14 +52,14 @@ export function LocationForm({ onSubmit, submitting }: FormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex items-center justify-between pb-1">
-        <span className="text-xs text-muted-foreground">Fill in the fields below</span>
+        <span className="text-xs text-muted-foreground">Completa los campos a continuación</span>
         <Button type="button" size="xs" variant="outline" onClick={fillSample}>
-          Fill Sample
+          Rellenar ejemplo
         </Button>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="loc-lat">Latitude</Label>
+          <Label htmlFor="loc-lat">Latitud</Label>
           <Input
             id="loc-lat"
             type="number"
@@ -75,7 +75,7 @@ export function LocationForm({ onSubmit, submitting }: FormProps) {
           )}
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="loc-lng">Longitude</Label>
+          <Label htmlFor="loc-lng">Longitud</Label>
           <Input
             id="loc-lng"
             type="number"
@@ -94,8 +94,8 @@ export function LocationForm({ onSubmit, submitting }: FormProps) {
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="loc-name">
-          Name{" "}
-          <span className="text-muted-foreground font-normal">(optional)</span>
+          Nombre{" "}
+          <span className="text-muted-foreground font-normal">(opcional)</span>
         </Label>
         <Input
           id="loc-name"
@@ -107,8 +107,8 @@ export function LocationForm({ onSubmit, submitting }: FormProps) {
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="loc-address">
-          Address{" "}
-          <span className="text-muted-foreground font-normal">(optional)</span>
+          Dirección{" "}
+          <span className="text-muted-foreground font-normal">(opcional)</span>
         </Label>
         <Input
           id="loc-address"
@@ -119,7 +119,7 @@ export function LocationForm({ onSubmit, submitting }: FormProps) {
       </div>
 
       <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Sending…" : "Send Message"}
+        {submitting ? "Enviando…" : "Enviar mensaje"}
       </Button>
     </form>
   )

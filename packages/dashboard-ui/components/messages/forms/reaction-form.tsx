@@ -26,7 +26,7 @@ export function ReactionForm({ onSubmit, submitting }: FormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!messageId.trim()) {
-      setError("Message ID is required.")
+      setError("El ID del mensaje es obligatorio.")
       return
     }
     setError("")
@@ -39,13 +39,13 @@ export function ReactionForm({ onSubmit, submitting }: FormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex items-center justify-between pb-1">
-        <span className="text-xs text-muted-foreground">Fill in the fields below</span>
+        <span className="text-xs text-muted-foreground">Completa los campos a continuación</span>
         <Button type="button" size="xs" variant="outline" onClick={fillSample}>
-          Fill Sample
+          Rellenar ejemplo
         </Button>
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="reaction-msgid">Message ID</Label>
+        <Label htmlFor="reaction-msgid">ID del mensaje</Label>
         <Input
           id="reaction-msgid"
           placeholder="3EB0..."
@@ -66,12 +66,12 @@ export function ReactionForm({ onSubmit, submitting }: FormProps) {
           className="w-24"
         />
         <p className="text-xs text-muted-foreground">
-          Empty string removes the reaction
+Dejarlo vacío elimina la reacción
         </p>
       </div>
 
       <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Sending…" : "Send Message"}
+        {submitting ? "Enviando…" : "Enviar mensaje"}
       </Button>
     </form>
   )

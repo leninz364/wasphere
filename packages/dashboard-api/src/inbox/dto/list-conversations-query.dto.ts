@@ -1,5 +1,5 @@
-import { IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum ConversationStatusFilter {
@@ -38,4 +38,10 @@ export class ListConversationsQueryDto {
   @IsString()
   @MaxLength(64)
   sessionId?: string;
+
+  @ApiPropertyOptional({ description: 'Show archived (hidden) chats instead of the active inbox', default: false })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  @IsBoolean()
+  archived?: boolean;
 }

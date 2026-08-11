@@ -15,19 +15,19 @@ export interface ActivityItem {
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diff / 60000)
-  if (mins < 1) return "just now"
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 1) return "justo ahora"
+  if (mins < 60) return `hace ${mins} min`
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  return `${Math.floor(hrs / 24)}d ago`
+  if (hrs < 24) return `hace ${hrs} h`
+  return `hace ${Math.floor(hrs / 24)} d`
 }
 
 function activityLabel(item: ActivityItem): string {
   const ep = item.endpoint ?? ""
   const match = /\/messages\/([^/?]+)/.exec(ep)
-  if (match) return `${match[1]} message sent`
-  if (ep.includes("/sessions")) return `Session ${item.method.toLowerCase()}`
-  return `${item.method} ${ep.split("/").slice(-1)[0] || "request"}`
+  if (match) return `Mensaje de tipo ${match[1]} enviado`
+  if (ep.includes("/sessions")) return `Sesión ${item.method.toLowerCase()}`
+  return `${item.method} ${ep.split("/").slice(-1)[0] || "solicitud"}`
 }
 
 export function ActivityFeed({ items }: { items: ActivityItem[] }) {
@@ -60,7 +60,7 @@ export function ActivityFeed({ items }: { items: ActivityItem[] }) {
       ))}
       {items.length === 0 && (
         <p className="text-sm text-zinc-400 py-6 text-center">
-          No recent activity.
+          Sin actividad reciente.
         </p>
       )}
     </div>

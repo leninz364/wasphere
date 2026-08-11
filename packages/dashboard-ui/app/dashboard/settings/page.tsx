@@ -1,6 +1,5 @@
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import { existsSync, readFileSync } from "node:fs"
 import { SettingsForm, type Workspace } from "@/components/settings/settings-form"
 import { LogoBrandingCard } from "@/components/settings/logo-branding-card"
 
@@ -16,28 +15,6 @@ async function fetchWorkspace(token: string): Promise<{ workspace: Workspace; wo
   const detail = await serverGet<Workspace>(`/workspaces/${workspaceId}`, token)
   if (!detail.ok || !detail.data) return null
   return { workspace: detail.data, workspaceId }
-}
-
-/**
- * Best-guess WA Server URL to suggest when a workspace has none set yet:
- *   1. WA_SERVER_INTERNAL_URL env (already correct in the Docker compose).
- *   2. Docker detected → the compose service name `http://wa-server:3001`.
- *   3. Otherwise a manual single-host install → `http://localhost:3001`.
- */
-function suggestWaServerUrl(): string {
-  const fromEnv = process.env.WA_SERVER_INTERNAL_URL?.trim()
-  if (fromEnv) return fromEnv
-
-  let dockerized = existsSync("/.dockerenv")
-  if (!dockerized) {
-    try {
-      const cgroup = readFileSync("/proc/1/cgroup", "utf8")
-      dockerized = /docker|containerd|kubepods/.test(cgroup)
-    } catch {
-      dockerized = false
-    }
-  }
-  return dockerized ? "http://wa-server:3001" : "http://localhost:3001"
 }
 
 export default async function SettingsPage() {
@@ -56,9 +33,18 @@ export default async function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Settings</h1>
-      <SettingsForm workspace={workspace} suggestedWaServerUrl={suggestWaServerUrl()} />
-      <LogoBrandingCard initialLogo={workspace.logo} />
+      <div>
+        <h1 className="text-2xl font-semibold">Configuración</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Personaliza el espacio de trabajo y la conservación de los chats.
+        </p>
+      </div>
+      <SettingsForm workspace={workspace} />
+      <LogoBrandingCard
+        initialLogo={workspace.logo}
+        initialName={workspace.name}
+        initialNameStyle={workspace.nameStyle}
+      />
     </div>
   )
 }

@@ -20,14 +20,14 @@ export function ViewOnceForm({ onSubmit, submitting }: FormProps) {
 
   const fillSample = () => {
     setUrl(SAMPLE_IMAGE_URL)
-    setCaption("View once image")
+    setCaption("Imagen para ver una vez")
     setError("")
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!url.trim()) {
-      setError("Media URL is required.")
+      setError("La URL del medio es obligatoria.")
       return
     }
     setError("")
@@ -39,13 +39,13 @@ export function ViewOnceForm({ onSubmit, submitting }: FormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex items-center justify-between pb-1">
-        <span className="text-xs text-muted-foreground">Fill in the fields below</span>
+        <span className="text-xs text-muted-foreground">Completa los campos a continuación</span>
         <Button type="button" size="xs" variant="outline" onClick={fillSample}>
-          Fill Sample
+          Rellenar ejemplo
         </Button>
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="vo-url">Media URL</Label>
+        <Label htmlFor="vo-url">URL del medio</Label>
         <Input
           id="vo-url"
           placeholder="https://example.com/photo.jpg"
@@ -54,18 +54,18 @@ export function ViewOnceForm({ onSubmit, submitting }: FormProps) {
         />
         {error && <p className="text-xs text-destructive">{error}</p>}
         <p className="text-xs text-muted-foreground">
-          Server auto-detects image or video. Native upload coming in v1.1.
+          El servidor detecta automáticamente si es imagen o video. La subida nativa llega en la v1.1.
         </p>
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="vo-caption">
-          Caption{" "}
-          <span className="text-muted-foreground font-normal">(optional)</span>
+          Descripción{" "}
+          <span className="text-muted-foreground font-normal">(opcional)</span>
         </Label>
         <Textarea
           id="vo-caption"
-          placeholder="Caption…"
+          placeholder="Descripción…"
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
           rows={2}
@@ -73,7 +73,7 @@ export function ViewOnceForm({ onSubmit, submitting }: FormProps) {
       </div>
 
       <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Sending…" : "Send Message"}
+        {submitting ? "Enviando…" : "Enviar mensaje"}
       </Button>
     </form>
   )

@@ -6,6 +6,14 @@ import { Copy, Check } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   Table,
   TableBody,
   TableCell,
@@ -31,8 +39,8 @@ function CopyButton({ value }: { value: string }) {
     <button
       onClick={handleCopy}
       className="ml-1.5 inline-flex items-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-      aria-label={copied ? "Copied" : "Copy session ID"}
-      title={copied ? "Copied!" : "Copy session ID"}
+      aria-label={copied ? "Copiado" : "Copiar ID de sesión"}
+      title={copied ? "¡Copiado!" : "Copiar ID de sesión"}
     >
       {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
     </button>
@@ -47,6 +55,11 @@ export interface Session {
   connectedAt?: string | null
   proxy?: string | null
   config?: { provider?: string | null } | null
+}
+
+interface MetaSetup {
+  callbackUrl: string
+  verifyToken: string
 }
 
 /** Meta Cloud API sessions have no QR — never offer Baileys "Relink" for them. */
@@ -74,6 +87,17 @@ function statusClassName(status: string): string {
   }
 }
 
+// Etiquetas visibles por estado — los valores internos ("connected", …) no cambian.
+const STATUS_LABELS: Record<string, string> = {
+  connected: "Conectada",
+  connecting: "Conectando",
+  qr_ready: "QR listo",
+  qr_expired: "QR expirado",
+  disconnected: "Desconectada",
+  logged_out: "Sesión cerrada",
+  failed: "Fallida",
+}
+
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—"
   try {
@@ -88,12 +112,13 @@ export function SessionsTable({ initialSessions }: SessionsTableProps) {
   const [fetchError, setFetchError] = React.useState<string | null>(null)
   const [newDialogOpen, setNewDialogOpen] = React.useState(false)
   const [qrSessionId, setQrSessionId] = React.useState<string | null>(null)
+  const [metaSetup, setMetaSetup] = React.useState<MetaSetup | null>(null)
 
   const refreshSessions = async () => {
     try {
       const res = await fetch("/api/sessions")
       if (!res.ok) {
-        setFetchError("Could not load sessions. Check your connection and try again.")
+        setFetchError("No se pudieron cargar las sesiones. Revisa tu conexión e inténtalo de nuevo.")
         return
       }
       setFetchError(null)
@@ -114,13 +139,13 @@ export function SessionsTable({ initialSessions }: SessionsTableProps) {
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        toast.error(body.message ?? "Logout failed.")
+        toast.error(body.message ?? "No se pudo cerrar la sesión.")
         return
       }
       // Refresh list to show updated status.
       await refreshSessions()
     } catch {
-      toast.error("Could not reach the server.")
+      toast.error("No se pudo conectar con el servidor.")
     }
   }
 
@@ -132,12 +157,12 @@ export function SessionsTable({ initialSessions }: SessionsTableProps) {
       // 404 means already gone on wa-server — treat as success
       if (!res.ok && res.status !== 404) {
         const body = await res.json().catch(() => ({}))
-        toast.error(body.message ?? "Delete failed.")
+        toast.error(body.message ?? "No se pudo eliminar.")
         return
       }
       setSessions((prev) => prev.filter((s) => s.id !== sessionId))
     } catch {
-      toast.error("Could not reach the server.")
+      toast.error("No se pudo conectar con el servidor.")
     }
   }
 
@@ -148,14 +173,14 @@ export function SessionsTable({ initialSessions }: SessionsTableProps) {
         ? prev.map((s) => (s.id === newSession.id ? newSession : s))
         : [newSession, ...prev]
     })
-    setQrSessionId(newSession.id)
+    if (!isMetaSession(newSession)) setQrSessionId(newSession.id)
   }
 
   const handleRelink = async (sessionId: string) => {
     // Relink = delete + recreate via QR. Baileys only — a Meta session would be
     // silently rebuilt as a QR/Baileys session, losing its Cloud API config.
     if (sessions.find((s) => s.id === sessionId && isMetaSession(s))) {
-      toast.error("Meta sessions don't use QR. Delete and recreate it with your Cloud API credentials.")
+      toast.error("Las sesiones de Meta no usan QR. Elimínala y créala de nuevo con tus credenciales de Cloud API.")
       return
     }
     try {
@@ -167,7 +192,7 @@ export function SessionsTable({ initialSessions }: SessionsTableProps) {
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        toast.error(body.message ?? "Failed to restart session.")
+        toast.error(body.message ?? "No se pudo reiniciar la sesión.")
         return
       }
       const updated: Session = await res.json()
@@ -176,15 +201,15 @@ export function SessionsTable({ initialSessions }: SessionsTableProps) {
       )
       setQrSessionId(sessionId)
     } catch {
-      toast.error("Could not reach the server.")
+      toast.error("No se pudo conectar con el servidor.")
     }
   }
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Sessions</h1>
-        <Button onClick={() => setNewDialogOpen(true)}>New Session</Button>
+        <h1 className="text-2xl font-semibold">Sesiones</h1>
+        <Button onClick={() => setNewDialogOpen(true)}>Nueva sesión</Button>
       </div>
 
       {fetchError && (
@@ -197,20 +222,20 @@ export function SessionsTable({ initialSessions }: SessionsTableProps) {
       {!fetchError && sessions.length === 0 ? (
         <EmptyState
           illustration={<SessionsIllustration />}
-          message="No sessions yet."
-          description="Create a session to connect a WhatsApp account."
+          message="Aún no hay sesiones."
+          description="Crea una sesión para conectar una cuenta de WhatsApp."
         />
       ) : !fetchError && (
         <div className="rounded-xl border bg-card overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Session</TableHead>
-              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Phone</TableHead>
-              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</TableHead>
-              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Connected At</TableHead>
+              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Sesión</TableHead>
+              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Teléfono</TableHead>
+              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Estado</TableHead>
+              <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Conectada el</TableHead>
               <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Proxy</TableHead>
-              <TableHead className="text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Actions</TableHead>
+              <TableHead className="text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -226,7 +251,7 @@ export function SessionsTable({ initialSessions }: SessionsTableProps) {
                 <TableCell>
                   <Badge className={`${statusClassName(session.status)} flex items-center gap-1.5`}>
                     <StatusDot status={session.status} />
-                    {session.status}
+                    {STATUS_LABELS[session.status] ?? session.status}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-xs text-zinc-400 font-light tabular-nums">{formatDate(session.connectedAt)}</TableCell>
@@ -243,7 +268,7 @@ export function SessionsTable({ initialSessions }: SessionsTableProps) {
                         size="sm"
                         onClick={() => setQrSessionId(session.id)}
                       >
-                        View QR
+                        Ver QR
                       </Button>
                     )}
                     {!isMetaSession(session) && (session.status === "failed" || session.status === "disconnected" || session.status === "logged_out" || session.status === "qr_expired") && (
@@ -252,7 +277,7 @@ export function SessionsTable({ initialSessions }: SessionsTableProps) {
                         size="sm"
                         onClick={() => handleRelink(session.id)}
                       >
-                        Relink
+                        Reconectar
                       </Button>
                     )}
                     {session.status === "connected" && (
@@ -261,7 +286,7 @@ export function SessionsTable({ initialSessions }: SessionsTableProps) {
                         size="sm"
                         onClick={() => handleLogout(session.id)}
                       >
-                        Logout
+                        Cerrar sesión
                       </Button>
                     )}
                     <Button
@@ -269,7 +294,7 @@ export function SessionsTable({ initialSessions }: SessionsTableProps) {
                       size="sm"
                       onClick={() => handleDelete(session.id)}
                     >
-                      Delete
+                      Eliminar
                     </Button>
                   </div>
                 </TableCell>
@@ -285,9 +310,14 @@ export function SessionsTable({ initialSessions }: SessionsTableProps) {
         onClose={() => setNewDialogOpen(false)}
         onCreated={(session) => {
           setNewDialogOpen(false)
+          if (session.metaSetup && typeof session.metaSetup === "object") {
+            setMetaSetup(session.metaSetup as MetaSetup)
+          }
           handleSessionCreated(session as Session)
         }}
       />
+
+      <MetaSetupDialog setup={metaSetup} onClose={() => setMetaSetup(null)} />
 
       {qrSessionId && (
         <QrDialog
@@ -300,6 +330,52 @@ export function SessionsTable({ initialSessions }: SessionsTableProps) {
           }}
         />
       )}
+    </div>
+  )
+}
+
+function MetaSetupDialog({ setup, onClose }: { setup: MetaSetup | null; onClose: () => void }) {
+  if (!setup) return null
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Finaliza la conexión en Meta</DialogTitle>
+          <DialogDescription>
+            Copia estos dos valores en WhatsApp &gt; Configuración &gt; Webhooks y suscríbete al campo messages.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-4">
+          <MetaSetupValue label="URL de callback" value={setup.callbackUrl} />
+          <MetaSetupValue label="Verify Token" value={setup.verifyToken} />
+          <p className="text-xs text-muted-foreground">
+            El Verify Token se muestra una sola vez. Guárdalo antes de cerrar esta ventana.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button type="button" onClick={onClose}>Listo</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function MetaSetupValue({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = React.useState(false)
+  const copy = async () => {
+    await navigator.clipboard.writeText(value)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-sm font-medium text-foreground">{label}</span>
+      <div className="flex items-center gap-2">
+        <code className="min-w-0 flex-1 truncate rounded-md border border-input bg-muted/40 px-2.5 py-2 text-xs text-muted-foreground">{value}</code>
+        <Button type="button" variant="outline" size="icon" onClick={copy} aria-label={`Copiar ${label}`}>
+          {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+        </Button>
+      </div>
     </div>
   )
 }

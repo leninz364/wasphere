@@ -11,8 +11,8 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "WaSphere",
-  description: "Self-hosted WhatsApp automation platform",
+  title: "BChat",
+  description: "Plataforma de automatización de WhatsApp autoalojada",
 };
 
 export default function RootLayout({
@@ -21,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${outfit.variable} h-full antialiased`}>
+    <html lang="es" suppressHydrationWarning className={`${outfit.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <Providers>
           <TooltipProvider>

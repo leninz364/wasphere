@@ -25,7 +25,7 @@ export function AudioForm({ onSubmit, submitting }: FormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!url.trim()) { setError("Audio URL or file is required."); return }
+    if (!url.trim()) { setError("Se requiere una URL o archivo de audio."); return }
     setError("")
     await onSubmit({ url: url.trim(), isVoiceNote })
   }
@@ -33,9 +33,9 @@ export function AudioForm({ onSubmit, submitting }: FormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex items-center justify-between pb-1">
-        <span className="text-xs text-muted-foreground">Fill in the fields below</span>
+        <span className="text-xs text-muted-foreground">Completa los campos a continuación</span>
         <Button type="button" size="xs" variant="outline" onClick={fillSample}>
-          Fill Sample
+          Rellenar ejemplo
         </Button>
       </div>
       <MediaInput
@@ -45,10 +45,10 @@ export function AudioForm({ onSubmit, submitting }: FormProps) {
       />
       <div className="flex items-center gap-3">
         <Switch checked={isVoiceNote} onCheckedChange={(v) => setIsVoiceNote(v === true)} id="voice-note" />
-        <Label htmlFor="voice-note" className="cursor-pointer font-normal">Send as Voice Note</Label>
+        <Label htmlFor="voice-note" className="cursor-pointer font-normal">Enviar como nota de voz</Label>
       </div>
       <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Sending…" : "Send Message"}
+        {submitting ? "Enviando…" : "Enviar mensaje"}
       </Button>
     </form>
   )

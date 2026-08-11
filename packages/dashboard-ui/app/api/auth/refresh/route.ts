@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import { serverPost } from "@/lib/server-fetch";
-
-const SECURE = process.env.NODE_ENV === "production";
+import { clearAuthCookies, setAuthCookies } from "@/lib/auth-cookies";
 
 export async function POST() {
   const cookieStore = await cookies();
@@ -11,36 +10,27 @@ export async function POST() {
     return new Response(null, { status: 401 });
   }
 
-  const { ok, data } = await serverPost<{ accessToken: string; refreshToken: string }>(
+  const { ok, status, data } = await serverPost<{ accessToken: string; refreshToken: string }>(
     "/auth/refresh",
     "",
     { refreshToken }
   );
 
   if (!ok || !data?.accessToken || !data?.refreshToken) {
-    cookieStore.set("wa_access", "", { maxAge: 0, path: "/" });
-    cookieStore.set("wa_refresh", "", { maxAge: 0, path: "/" });
+    // 502 means dashboard-api was unreachable, not that the session is invalid.
+    // Clearing cookies there would turn a network blip into a forced logout, so
+    // report it as a retryable failure and leave the session alone.
+    if (status === 502) {
+      return new Response(null, { status: 503 });
+    }
+    clearAuthCookies(cookieStore);
     return new Response(null, { status: 401 });
   }
-
-  cookieStore.set("wa_access", data.accessToken, {
-    httpOnly: true,
-    secure: SECURE,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 900,
-  });
 
   // The API rotates the refresh token on every refresh and revokes the old one.
   // Persist the new value, or the next refresh sends a revoked token and the
   // reuse-detection path logs the user out everywhere.
-  cookieStore.set("wa_refresh", data.refreshToken, {
-    httpOnly: true,
-    secure: SECURE,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 604800,
-  });
+  setAuthCookies(cookieStore, data.accessToken, data.refreshToken);
 
   return new Response(null, { status: 200 });
 }

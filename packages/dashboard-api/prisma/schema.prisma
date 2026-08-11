@@ -38,14 +38,27 @@ model User {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email        String   @unique
   passwordHash String   @map("password_hash")
+  // Agent profile (edited by owner/admin from the Team page)
+  firstName    String?  @map("first_name")
+  lastName     String?  @map("last_name")
+  // national ID (cédula)
+  cedula       String?
+  // job title (cargo)
+  cargo        String?
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
-  workspaces          WorkspaceMember[]
-  ownedWorkspaces     Workspace[]
-  refreshTokens       RefreshToken[]
-  passwordResetTokens PasswordResetToken[]
-  createdApiKeys      ApiKey[]
+  workspaces            WorkspaceMember[]
+  ownedWorkspaces       Workspace[]
+  refreshTokens         RefreshToken[]
+  passwordResetTokens   PasswordResetToken[]
+  createdApiKeys        ApiKey[]
+  assignedConversations Conversation[]      @relation("AssignedConversations")
+  delegatedConversations Conversation[]     @relation("DelegatedConversations")
+  archivedConversations Conversation[]      @relation("ArchivedConversations")
+  conversationEvents    ConversationEvent[]
+  groupMemberships      AgentGroupMember[]
+  contactRatings        ContactRating[]
 
   @@map("users")
 }
@@ -64,6 +77,15 @@ model Workspace {
   waServerTokenIv String?  @map("wa_server_token_iv")
   // Optional custom logo (data: URI) for dashboard branding. Null = default logo.
   logo            String?  @db.Text @map("logo")
+  // Style for the company name shown in the sidebar when there is no logo:
+  // { color?: "#rrggbb"; size?: "sm"|"md"|"lg"|"xl"; font?: "sans"|"serif"|"mono"|"script"|"impact" }
+  nameStyle       Json?    @map("name_style")
+  // Chat retention policy: number of days a RESOLVED/SOLUCIONADO chat stays
+  // visible before it is automatically archived. Null or 0 = disabled.
+  chatRetentionResolvedDays Int?   @map("chat_retention_resolved_days")
+  // Chat retention policy: number of days an archived chat is kept before it is
+  // permanently deleted. Null or 0 = disabled.
+  chatRetentionArchivedDays Int?   @map("chat_retention_archived_days")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
@@ -74,9 +96,11 @@ model Workspace {
   apiKeys       ApiKey[]
   webhooks      Webhook[]
   // Inbox (v1.1) — virtual back-relations, no DB columns added to workspaces
-  contacts      Contact[]
-  conversations Conversation[]
-  messages      Message[]
+  contacts           Contact[]
+  conversations      Conversation[]
+  messages           Message[]
+  conversationEvents ConversationEvent[]
+  agentGroups        AgentGroup[]
 
   @@index([ownerId])
   @@map("workspaces")
@@ -95,6 +119,8 @@ model WorkspaceMember {
   // For MEMBER tier: the custom role defining this agent's capabilities.
   // Null = defaults only (inbox/contacts). Ignored for OWNER/ADMIN.
   customRoleId String?      @map("custom_role_id") @db.Uuid
+  // Inbox bell: delegation notifications up to this instant are "seen".
+  notificationsSeenAt DateTime? @map("notifications_seen_at") @db.Timestamptz()
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz()
 
   workspace  Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -111,6 +137,38 @@ enum WorkspaceRole {
   OWNER
   ADMIN
   MEMBER
+}
+
+// ---------------------------------------------------------------------------
+// agent_groups — operator-defined teams of agents (e.g. "Soporte", "Ventas").
+// Organizational only for now; members are workspace users.
+// ---------------------------------------------------------------------------
+model AgentGroup {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  workspace              Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members                AgentGroupMember[]
+  delegatedConversations Conversation[]
+
+  @@unique([workspaceId, name])
+  @@map("agent_groups")
+}
+
+model AgentGroupMember {
+  groupId   String   @map("group_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  group AgentGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@map("agent_group_members")
 }
 
 // Named, reusable permission sets an owner defines for agents (MEMBER tier).
@@ -197,6 +255,7 @@ model ApiKey {
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   createdBy User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  webhooks  Webhook[]
 
   @@index([workspaceId])
   @@index([keyPrefix])
@@ -210,13 +269,23 @@ model ApiKey {
 model Webhook {
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspaceId     String    @map("workspace_id") @db.Uuid
+  apiKeyId        String?   @map("api_key_id") @db.Uuid
+  provider        String    @default("generic")
   name            String
   url             String
   // Array of event type strings (e.g. ["message.sent","session.connected"]) or ["*"] for all
   events          Json      @default("[]")
   // HMAC-SHA256 signing secret, 64 hex chars. Never expose in list endpoints.
   signingSecret   String    @map("signing_secret")
+  // Optional outbound Bearer credential, encrypted with ENCRYPTION_KEY.
+  bearerToken     String?   @map("bearer_token")
+  bearerTokenIv   String?   @map("bearer_token_iv")
   isActive        Boolean   @default(true) @map("is_active")
+  // Hold back message events for chats a human agent has taken over
+  // (attention EN_PROCESO), so an AI agent on the other end stops replying over
+  // the person now handling the conversation. Turn off for integrations that
+  // want the raw firehose (analytics, archiving).
+  pauseOnHumanTakeover Boolean @default(true) @map("pause_on_human_takeover")
   retryMax        Int       @default(3) @map("retry_max")
   // Consecutive failures; auto-deactivate at 50
   failureCount    Int       @default(0) @map("failure_count")
@@ -225,8 +294,10 @@ model Webhook {
   lastFailedAt    DateTime? @map("last_failed_at") @db.Timestamptz()
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  apiKey    ApiKey?   @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId])
+  @@index([apiKeyId])
   @@index([workspaceId, isActive])
   @@map("webhooks")
 }
@@ -260,6 +331,17 @@ enum ConversationStatus {
   SNOOZED
 }
 
+// Agent attention workflow: PENDIENTE (nobody has handled it yet — the AI bot
+// is the implicit first responder), EN_PROCESO (a human agent took over),
+// ATENDIDO (agent marked it handled — takeover lock), SOLUCIONADO (closed,
+// also maps the conversation status to RESOLVED).
+enum AttentionStatus {
+  PENDIENTE
+  EN_PROCESO
+  ATENDIDO
+  SOLUCIONADO
+}
+
 enum MessageDirection {
   INBOUND
   OUTBOUND
@@ -284,6 +366,10 @@ model Contact {
   jid          String
   // normalized digits, e.g. 447700900123
   phone        String
+  // WhatsApp LID (opaque privacy id, e.g. 7009554456747@lid) — learned from
+  // inbound messages so outbound sends addressed to the LID resolve to this
+  // contact instead of spawning a phantom one
+  lid          String?
   // auto-updated from WhatsApp pushName on each inbound
   whatsappName String?  @map("whatsapp_name")
   // operator-set; NEVER auto-overwritten
@@ -293,15 +379,42 @@ model Contact {
   tags         String[] @default([])
   // Free-form operator note about this contact
   notes        String?  @db.Text
+  // Accumulated customer rating: the AVERAGE of every agent's 1–5 star rating
+  // (see ContactRating). Denormalized here for cheap list/sort; null = unrated.
+  ratingAvg    Float?   @map("rating_avg")
+  ratingCount  Int      @default(0) @map("rating_count")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
   workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   conversations Conversation[]
+  ratings       ContactRating[]
 
   @@unique([workspaceId, jid])
   @@index([workspaceId, phone])
+  @@index([workspaceId, lid])
   @@map("contacts")
+}
+
+// ---------------------------------------------------------------------------
+// contact_ratings — one 1–5 star rating per (contact, agent). The customer's
+// shown rating is the average across all agents who rated them. An agent may
+// update their own rating; the contact's ratingAvg/ratingCount are recomputed.
+// ---------------------------------------------------------------------------
+model ContactRating {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contactId String   @map("contact_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  rating    Int
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, userId])
+  @@index([contactId])
+  @@map("contact_ratings")
 }
 
 // ---------------------------------------------------------------------------
@@ -322,17 +435,71 @@ model Conversation {
   tags             Json               @default("[]")
   // set when the owning WA session is deleted -> read-only archive
   sessionDeletedAt DateTime?          @map("session_deleted_at") @db.Timestamptz()
+  // Soft-delete: an OWNER/ADMIN archived (hid) this SOLUCIONADO chat. Excluded
+  // from the inbox list by default; data is preserved and the chat resurfaces
+  // (archivedAt cleared) if the customer writes again.
+  archivedAt       DateTime?          @map("archived_at") @db.Timestamptz()
+  archivedByUserId String?            @map("archived_by_user_id") @db.Uuid
   metadata         Json?
+  // Attention workflow: who is handling this chat. Null = the AI bot (always
+  // the first responder). Auto-assigned to the human agent who opens the chat,
+  // re-assignable until the agent marks it ATENDIDO/SOLUCIONADO.
+  assignedToUserId String?            @map("assigned_to_user_id") @db.Uuid
+  assignedAt       DateTime?          @map("assigned_at") @db.Timestamptz()
+  attention        AttentionStatus    @default(PENDIENTE)
+  // Timestamp when the chat was last marked SOLUCIONADO/RESOLVED. Kept for
+  // history; automatic retention is measured from updatedAt so later changes
+  // restart the configured window.
+  resolvedAt       DateTime?          @map("resolved_at") @db.Timestamptz()
+  // Delegated to an agent group / department / location (see AgentGroup).
+  delegatedGroupId String?            @map("delegated_group_id") @db.Uuid
+  // Delegated (reserved) to a specific agent: the chat stays PENDIENTE but is
+  // exclusive to that agent (and OWNER/ADMIN) until taken over or released.
+  delegatedToUserId String?           @map("delegated_to_user_id") @db.Uuid
   createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz()
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  contact   Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  messages  Message[]
+  workspace      Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact        Contact             @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  assignedTo     User?               @relation("AssignedConversations", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  delegatedGroup AgentGroup?         @relation(fields: [delegatedGroupId], references: [id], onDelete: SetNull)
+  delegatedToUser User?              @relation("DelegatedConversations", fields: [delegatedToUserId], references: [id], onDelete: SetNull)
+  archivedBy      User?              @relation("ArchivedConversations", fields: [archivedByUserId], references: [id], onDelete: SetNull)
+  messages       Message[]
+  events         ConversationEvent[]
 
   @@unique([workspaceId, sessionId, contactId])
   @@index([workspaceId, status, lastMessageAt(sort: Desc)])
+  // Retention policy lookups: resolved chats eligible for archiving and
+  // archived chats eligible for permanent deletion.
+  @@index([workspaceId, status, resolvedAt])
+  @@index([workspaceId, archivedAt])
   @@map("conversations")
+}
+
+// ---------------------------------------------------------------------------
+// conversation_events — "Atención realizada" audit trail per conversation.
+// One row per attention action (takeover, status change, reopen). Also the
+// source for the per-agent daily-work report.
+// ---------------------------------------------------------------------------
+model ConversationEvent {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId    String   @map("workspace_id") @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  // Null actor = the AI bot / system
+  actorUserId    String?  @map("actor_user_id") @db.Uuid
+  // assigned | attention_changed | status_changed | reopened
+  type           String
+  detail         Json?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  actor        User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([workspaceId, createdAt])
+  @@map("conversation_events")
 }
 
 // ---------------------------------------------------------------------------
@@ -356,6 +523,9 @@ model Message {
   payload        Json?
   status         MessageDeliveryStatus @default(SENT)
   fromMe         Boolean               @map("from_me")
+  // Dashboard user who sent this outbound message (composer). Null for
+  // inbound, bot/API sends — feeds the per-agent daily-work report.
+  sentByUserId   String?               @map("sent_by_user_id") @db.Uuid
   // WhatsApp's own message timestamp
   waTimestamp    DateTime              @map("wa_timestamp") @db.Timestamptz()
   createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz()

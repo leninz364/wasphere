@@ -36,7 +36,7 @@ export default async function DeveloperPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Developer</h1>
+      <h1 className="text-2xl font-semibold">Desarrollador</h1>
       <DeveloperPanel waServerUrl={workspace.waServerUrl ?? null} />
     </div>
   )

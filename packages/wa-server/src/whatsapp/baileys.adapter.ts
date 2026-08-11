@@ -90,17 +90,35 @@ export class BaileysAdapter implements IWhatsAppAdapter, OnModuleInit {
   private readonly sessionsDir = './sessions';
   private readonly MAX_RETRIES = 5;
   private readonly RETRY_DELAY_MS = 5000;
+  // In-flight initSocket() per session — see initSocket().
+  private readonly initLocks = new Map<string, Promise<void>>();
 
   // Per session: Map<messageId, proto.IWebMessageInfo>
   // Eviction: when size reaches 100, delete the oldest inserted key before inserting the new one.
   private readonly messageCache = new Map<string, Map<string, proto.IWebMessageInfo>>();
   private readonly MESSAGE_CACHE_LIMIT = 100;
+
+  // Per session: Map<messageId, firedAt>. See markMessageFired().
+  private readonly firedMessages = new Map<string, Map<string, number>>();
+  private readonly FIRED_TTL_MS = 10 * 60 * 1000;
+  private readonly FIRED_LIMIT = 1000;
   private readonly qrMeta = new Map<string, { generatedAt: Date }>();
   // Profile-picture URL cache keyed by `${sessionId}:${jid}`. WhatsApp pic URLs
   // are temporary, so entries are refreshed after AVATAR_TTL_MS. A null url is
   // cached too (contact has no pic / pic is private) to avoid re-fetching.
   private readonly avatarCache = new Map<string, { url: string | null; at: number }>();
   private readonly AVATAR_TTL_MS = 6 * 60 * 60 * 1000; // 6h
+
+  // Ids of calls we've already auto-rejected. A single incoming call emits
+  // several `offer`/`ringing` events with the same id — dedupe so we reject and
+  // auto-reply exactly once. Bounded; pruned when it grows past the cap.
+  private readonly handledCalls = new Set<string>();
+  private readonly HANDLED_CALLS_LIMIT = 500;
+  // Auto-reply sent to a caller right after we reject their WhatsApp call.
+  // Overridable per-deployment via CALL_REJECT_MESSAGE.
+  private readonly callRejectMessage =
+    process.env.CALL_REJECT_MESSAGE?.trim() ||
+    'Hola 👋 No podemos atender llamadas por este medio. Por favor escríbenos por aquí y con gusto te ayudamos.';
 
   constructor(private webhookService: WebhookService) {
     // Ensure sessions directory exists
@@ -166,6 +184,39 @@ export class BaileysAdapter implements IWhatsAppAdapter, OnModuleInit {
       cache.delete(cache.keys().next().value as string);
     }
     cache.set(msg.key.id, msg);
+  }
+
+  /**
+   * True the first time a message id is seen for a session, false on a repeat.
+   *
+   * WhatsApp redelivers a message whenever Baileys fails to decrypt it and asks
+   * for a resend, and the resend arrives as a fresh `messages.upsert` of type
+   * 'notify' — indistinguishable from a new message. The inbox never showed the
+   * duplicate because the DB is unique on (workspace, wa_message_id), but the
+   * webhook fired once per arrival, so an agent on the other end answered the
+   * same question two or three times.
+   */
+  private markMessageFired(sessionId: string, messageId: string): boolean {
+    let seen = this.firedMessages.get(sessionId);
+    if (!seen) {
+      seen = new Map();
+      this.firedMessages.set(sessionId, seen);
+    }
+
+    const now = Date.now();
+    const firedAt = seen.get(messageId);
+    if (firedAt !== undefined && now - firedAt < this.FIRED_TTL_MS) return false;
+
+    for (const [id, at] of seen) {
+      if (now - at >= this.FIRED_TTL_MS) seen.delete(id);
+    }
+    // Map preserves insertion order, so this drops the oldest ids first.
+    while (seen.size >= this.FIRED_LIMIT) {
+      seen.delete(seen.keys().next().value as string);
+    }
+
+    seen.set(messageId, now);
+    return true;
   }
 
   private getSocket(sessionId: string): WASocket {
@@ -311,12 +362,14 @@ export class BaileysAdapter implements IWhatsAppAdapter, OnModuleInit {
           new Promise(r => setTimeout(r, 5000)),
         ]);
       }
-      sock.end(undefined);
-      this.sessions.delete(sessionId);
+      this.destroySocket(sessionId);
     }
 
     this.sessionInfo.delete(sessionId);
     this.messageCache.delete(sessionId);
+    // Not cleared on reconnect — a redelivery lands precisely after one, which
+    // is exactly when this has to still remember what it already forwarded.
+    this.firedMessages.delete(sessionId);
     this.qrMeta.delete(sessionId);
     this.sendWindow.delete(sessionId);
 
@@ -342,7 +395,61 @@ export class BaileysAdapter implements IWhatsAppAdapter, OnModuleInit {
 
   // ─── Core socket init ──────────────────────────────────────────────────
 
+  /**
+   * Tear down the socket currently registered for `sessionId`, if any.
+   *
+   * Replacing the map entry is not enough: the old socket keeps its event
+   * listeners bound and its websocket open, so its eventual 'close' fires a
+   * second reconnect. Left unchecked, every reconnect doubles the number of
+   * live sockets, WhatsApp sees several connections for one account and starts
+   * timing out the init queries (408) — the session then never stabilises.
+   */
+  private destroySocket(sessionId: string): void {
+    const existing = this.sessions.get(sessionId);
+    if (!existing) return;
+    this.sessions.delete(sessionId);
+    try {
+      existing.ev.removeAllListeners('connection.update');
+      existing.ev.removeAllListeners('creds.update');
+      existing.ev.removeAllListeners('messages.upsert');
+      existing.ev.removeAllListeners('messages.update');
+      existing.ev.removeAllListeners('message-receipt.update');
+      existing.ev.removeAllListeners('presence.update');
+      existing.ev.removeAllListeners('groups.update');
+      existing.ev.removeAllListeners('group-participants.update');
+      existing.ev.removeAllListeners('contacts.update');
+      existing.ev.removeAllListeners('call');
+    } catch {
+      /* listener teardown must never block a reconnect */
+    }
+    try {
+      existing.end(undefined);
+    } catch {
+      /* socket may already be closed */
+    }
+  }
+
+  /**
+   * Serialise socket creation per session. Restore-on-boot, an explicit create
+   * and a scheduled reconnect can all fire for the same id; without this lock
+   * they interleave and leave orphaned sockets behind.
+   */
   private async initSocket(sessionId: string, proxy?: string, configFields?: Partial<SessionConfig>): Promise<void> {
+    const pending = this.initLocks.get(sessionId);
+    if (pending) await pending.catch(() => {});
+
+    const run = this.createSocket(sessionId, proxy, configFields);
+    this.initLocks.set(sessionId, run);
+    try {
+      await run;
+    } finally {
+      if (this.initLocks.get(sessionId) === run) this.initLocks.delete(sessionId);
+    }
+  }
+
+  private async createSocket(sessionId: string, proxy?: string, configFields?: Partial<SessionConfig>): Promise<void> {
+    this.destroySocket(sessionId);
+
     const sessionPath = this.resolveSessionPath(sessionId);
     if (!fs.existsSync(sessionPath)) {
       fs.mkdirSync(sessionPath, { recursive: true });
@@ -411,6 +518,9 @@ export class BaileysAdapter implements IWhatsAppAdapter, OnModuleInit {
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', async (update) => {
+      // Ignore events from a socket that has already been replaced — otherwise
+      // a stale close would bump retryCount and schedule a rogue reconnect.
+      if (this.sessions.get(sessionId) !== sock) return;
       await this.handleConnectionUpdate(sessionId, update);
     });
 
@@ -448,7 +558,68 @@ export class BaileysAdapter implements IWhatsAppAdapter, OnModuleInit {
 
     sock.ev.on('call', async (calls) => {
       await this.webhookService.fire('call', sessionId, calls);
+      await this.handleIncomingCalls(sessionId, calls);
     });
+  }
+
+  // ─── Incoming-call handler ─────────────────────────────────────────────
+  // WhatsApp calls cannot be answered over the Web/multi-device protocol
+  // (Baileys exposes no accept/answer — only rejectCall). Policy: always reject
+  // the incoming 1:1 call, send the caller an automatic message, and log the
+  // attempt into the Inbox so an agent can follow up.
+  private async handleIncomingCalls(
+    sessionId: string,
+    calls: BaileysEventMap['call'],
+  ): Promise<void> {
+    const sock = this.sessions.get(sessionId);
+    if (!sock) return;
+
+    for (const call of calls) {
+      // Only act on the initial ringing offer of a direct call.
+      if (call.status !== 'offer' || call.isGroup) continue;
+      // A call re-emits the same id across offer/ringing — handle it once.
+      if (this.handledCalls.has(call.id)) continue;
+      this.handledCalls.add(call.id);
+      if (this.handledCalls.size > this.HANDLED_CALLS_LIMIT) {
+        // Drop the oldest half in insertion order to keep the set bounded.
+        const drop = Math.floor(this.HANDLED_CALLS_LIMIT / 2);
+        let i = 0;
+        for (const id of this.handledCalls) {
+          if (i++ >= drop) break;
+          this.handledCalls.delete(id);
+        }
+      }
+
+      // 1) Reject the call.
+      try {
+        await sock.rejectCall(call.id, call.from);
+      } catch (err) {
+        console.warn(`[Call] Failed to reject call ${call.id}: ${(err as Error).message}`);
+      }
+
+      // 2) Auto-reply so the caller knows to write instead. Mirrored to the
+      //    Inbox as an outbound message (mirror of OutboundEventInterceptor).
+      try {
+        const result = await sock.sendMessage(call.from, { text: this.callRejectMessage });
+        await this.webhookService.fire('message.sent', sessionId, {
+          to: call.from,
+          messageId: result?.key?.id,
+          type: 'text',
+          content: { text: this.callRejectMessage },
+          timestamp: Math.floor(Date.now() / 1000),
+        });
+      } catch (err) {
+        console.warn(`[Call] Failed to auto-reply to ${call.from}: ${(err as Error).message}`);
+      }
+
+      // 3) Record the (rejected) call attempt in the Inbox thread.
+      await this.webhookService.fire('call.rejected', sessionId, {
+        from: call.from,
+        callId: call.id,
+        isVideo: Boolean(call.isVideo),
+        timestamp: Math.floor((call.date?.getTime?.() ?? Date.now()) / 1000),
+      });
+    }
   }
 
   // ─── Connection state handler ──────────────────────────────────────────
@@ -521,7 +692,7 @@ export class BaileysAdapter implements IWhatsAppAdapter, OnModuleInit {
         // User explicitly logged out — don't reconnect, clean up
         this.sessionInfo.set(sessionId, { ...info, status: 'logged_out', lastDisconnectReason: safeReason });
         await this.webhookService.fire('session.logged_out', sessionId, {});
-        this.sessions.delete(sessionId);
+        this.destroySocket(sessionId);
         return;
       }
 
@@ -543,6 +714,8 @@ export class BaileysAdapter implements IWhatsAppAdapter, OnModuleInit {
           retryCount: newRetryCount,
         });
         console.error(`[${sessionId}] Session failed — reason: ${rawReason}, retryCount: ${newRetryCount}`);
+        // Terminal state: drop the socket so no listener survives to retry.
+        this.destroySocket(sessionId);
         return;
       }
 
@@ -563,8 +736,11 @@ export class BaileysAdapter implements IWhatsAppAdapter, OnModuleInit {
       );
 
       setTimeout(() => {
-        this.sessions.delete(sessionId);
-        this.initSocket(sessionId, info.proxy);
+        // destroySocket() (inside initSocket) needs the entry still in the map
+        // to be able to end it — do not delete it here.
+        this.initSocket(sessionId, info.proxy).catch((err) =>
+          console.error(`[${sessionId}] Reconnect failed: ${(err as Error).message}`),
+        );
       }, delay);
     }
   }
@@ -586,6 +762,9 @@ export class BaileysAdapter implements IWhatsAppAdapter, OnModuleInit {
       const config = this.sessionConfigs.get(sessionId) ?? SESSION_CONFIG_DEFAULTS;
 
       if (!config.receive_enabled) continue; // early exit — webhook not fired
+
+      // Drop a redelivery of a message already forwarded — see markMessageFired().
+      if (msg.key.id && !this.markMessageFired(sessionId, msg.key.id)) continue;
 
       if (config.auto_read_on_receive) {
         const sock = this.sessions.get(sessionId);
@@ -777,12 +956,29 @@ export class BaileysAdapter implements IWhatsAppAdapter, OnModuleInit {
       const declared = Number((media as { fileLength?: number | Long }).fileLength ?? 0);
       if (declared && declared > CAP) return null; // skip large files
 
-      const buffer = (await downloadMediaMessage(
-        msg,
-        'buffer',
-        {},
-        { logger: console as never, reuploadRequest: sock.updateMediaMessage },
-      )) as Buffer;
+      // Best-effort with retries: transient failures (DNS EAI_AGAIN, a not-yet
+      // available media key) often recover on a second attempt, and the
+      // reuploadRequest asks the sender to re-encrypt the media for us. A single
+      // shot at ingest time is why documents/photos sometimes arrive empty.
+      let buffer: Buffer | null = null;
+      let lastErr: unknown = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          buffer = (await downloadMediaMessage(
+            msg,
+            'buffer',
+            {},
+            { logger: console as never, reuploadRequest: sock.updateMediaMessage },
+          )) as Buffer;
+          if (buffer && buffer.length) break;
+        } catch (e) {
+          lastErr = e;
+          // A missing media key never recovers by retrying — bail out early.
+          if (String((e as Error)?.message).includes('empty media key')) break;
+        }
+        if (attempt < 3) await new Promise((r) => setTimeout(r, attempt * 800));
+      }
+      if (lastErr && (!buffer || !buffer.length)) throw lastErr;
       if (!buffer || buffer.length > CAP) return null;
 
       const fallback =

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
 import type { Webhook } from "@/components/webhooks/webhooks-tab"
 
 // ─── Event groups ─────────────────────────────────────────────────────────────
@@ -63,7 +64,7 @@ function SecretDisplay({ secret, onDone }: { secret: string; onDone: () => void 
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      toast.error("Failed to copy.")
+      toast.error("No se pudo copiar.")
     }
   }
 
@@ -72,23 +73,23 @@ function SecretDisplay({ secret, onDone }: { secret: string; onDone: () => void 
       <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
         <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
         <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
-          This signing secret will not be shown again. Copy it now and store it securely.
+          Este secreto de firma no se mostrará nuevamente. Cópialo ahora y guárdalo de forma segura.
         </p>
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label className="text-sm font-medium text-foreground">Signing Secret</Label>
+        <Label className="text-sm font-medium text-foreground">Secreto de firma</Label>
         <div className="flex items-center gap-2">
           <Input value={secret} readOnly className="font-mono text-xs" aria-label="Signing secret" />
-          <Button variant="outline" size="icon" onClick={handleCopy} aria-label={copied ? "Copied" : "Copy"}>
+          <Button variant="outline" size="icon" onClick={handleCopy} aria-label={copied ? "Copiado" : "Copiar"}>
             {copied ? <Check className="size-4 text-green-600" /> : <Copy className="size-4" />}
           </Button>
         </div>
         <p className="text-xs text-zinc-400 font-light">
-          Use this to verify HMAC-SHA256 signatures on incoming webhook payloads.
+          Usa esto para verificar firmas HMAC-SHA256 en cargas útiles entrantes de webhooks.
         </p>
       </div>
       <DialogFooter>
-        <Button onClick={onDone}>I&apos;ve saved it</Button>
+        <Button onClick={onDone}>Ya lo guardé</Button>
       </DialogFooter>
     </div>
   )
@@ -105,17 +106,20 @@ export interface WebhookAddDialogProps {
 export function WebhookAddDialog({ open, onClose, onCreated }: WebhookAddDialogProps) {
   const [name, setName] = React.useState("")
   const [url, setUrl] = React.useState("")
+  const [bearerToken, setBearerToken] = React.useState("")
   const [urlError, setUrlError] = React.useState<string | null>(null)
   const [selectedEvents, setSelectedEvents] = React.useState<string[]>([])
   const [wildcard, setWildcard] = React.useState(false)
+  const [pauseOnHumanTakeover, setPauseOnHumanTakeover] = React.useState(true)
   const [secretExpanded, setSecretExpanded] = React.useState(false)
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [signingSecret, setSigningSecret] = React.useState<string | null>(null)
 
   const reset = () => {
-    setName(""); setUrl(""); setUrlError(null)
-    setSelectedEvents([]); setWildcard(false); setSecretExpanded(false)
+    setName(""); setUrl(""); setBearerToken(""); setUrlError(null)
+    setSelectedEvents([]); setWildcard(false); setPauseOnHumanTakeover(true)
+    setSecretExpanded(false)
     setSubmitting(false); setError(null); setSigningSecret(null)
   }
 
@@ -126,12 +130,12 @@ export function WebhookAddDialog({ open, onClose, onCreated }: WebhookAddDialogP
     try {
       const parsed = new URL(val)
       if (parsed.protocol !== "https:") {
-        setUrlError("URL must use HTTPS.")
+        setUrlError("La URL debe usar HTTPS.")
       } else {
         setUrlError(null)
       }
     } catch {
-      setUrlError("Enter a valid URL.")
+      setUrlError("Ingresa una URL válida.")
     }
   }
 
@@ -148,14 +152,20 @@ export function WebhookAddDialog({ open, onClose, onCreated }: WebhookAddDialogP
     setError(null)
     if (urlError) return
     const events = wildcard ? ["*"] : selectedEvents
-    if (events.length === 0) { setError("Select at least one event."); return }
+    if (events.length === 0) { setError("Selecciona al menos un evento."); return }
 
     setSubmitting(true)
     try {
       const res = await fetch("/api/webhooks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), url, events }),
+        body: JSON.stringify({
+          name: name.trim(),
+          url,
+          events,
+          pauseOnHumanTakeover,
+          ...(bearerToken.trim() && { bearerToken: bearerToken.trim() }),
+        }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
@@ -165,7 +175,7 @@ export function WebhookAddDialog({ open, onClose, onCreated }: WebhookAddDialogP
       setSigningSecret(data.signingSecret ?? null)
       onCreated(data as Webhook)
     } catch {
-      setError("Could not reach the server.")
+      setError("No se pudo comunicar con el servidor.")
     } finally {
       setSubmitting(false)
     }
@@ -175,7 +185,7 @@ export function WebhookAddDialog({ open, onClose, onCreated }: WebhookAddDialogP
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
       <DialogContent showCloseButton className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{signingSecret ? "Webhook Created" : "Add Webhook"}</DialogTitle>
+          <DialogTitle>{signingSecret ? "Webhook creado" : "Agregar Webhook"}</DialogTitle>
         </DialogHeader>
 
         {signingSecret ? (
@@ -184,10 +194,10 @@ export function WebhookAddDialog({ open, onClose, onCreated }: WebhookAddDialogP
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {/* Name */}
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="wh-name" className="text-sm font-medium text-foreground">Name</Label>
+              <Label htmlFor="wh-name" className="text-sm font-medium text-foreground">Nombre</Label>
               <Input
                 id="wh-name"
-                placeholder="e.g. Production alerts"
+                placeholder="p. ej. Alertas de producción"
                 className="placeholder:text-zinc-400 placeholder:font-light"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -211,16 +221,35 @@ export function WebhookAddDialog({ open, onClose, onCreated }: WebhookAddDialogP
               {urlError && <p className="text-xs text-destructive">{urlError}</p>}
             </div>
 
+            {/* Optional outbound authentication */}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="wh-bearer-token" className="text-sm font-medium text-foreground">
+                Token de portador <span className="text-xs font-light text-zinc-400">(opcional)</span>
+              </Label>
+              <Input
+                id="wh-bearer-token"
+                type="password"
+                autoComplete="off"
+                placeholder="Token Bearer del receptor"
+                value={bearerToken}
+                onChange={(e) => setBearerToken(e.target.value)}
+                maxLength={4096}
+              />
+              <p className="text-xs font-light text-zinc-400">
+                Se cifra y se envía como Authorization: Bearer en cada entrega.
+              </p>
+            </div>
+
             {/* Events */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium text-foreground">Events</Label>
+                <Label className="text-sm font-medium text-foreground">Eventos</Label>
                 <label className="flex items-center gap-1.5 cursor-pointer select-none">
                   <Checkbox
                     checked={wildcard}
                     onCheckedChange={(v) => handleWildcard(v === true)}
                   />
-                  <span className="text-xs text-zinc-700 dark:text-zinc-300">All (*)</span>
+                  <span className="text-xs text-zinc-700 dark:text-zinc-300">Todos (*)</span>
                 </label>
               </div>
               <div className="flex flex-col gap-3 rounded-lg border p-3">
@@ -244,6 +273,25 @@ export function WebhookAddDialog({ open, onClose, onCreated }: WebhookAddDialogP
               </div>
             </div>
 
+            {/* Hand-off to a human agent */}
+            <div className="flex flex-col gap-2 rounded-lg border p-3">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="wh-pause" className="text-sm font-medium text-foreground">
+                  Pausar cuando atiende un humano
+                </Label>
+                <Switch
+                  id="wh-pause"
+                  checked={pauseOnHumanTakeover}
+                  onCheckedChange={setPauseOnHumanTakeover}
+                />
+              </div>
+              <p className="text-xs font-light text-zinc-400">
+                Deja de enviar los mensajes de un chat en cuanto un agente lo toma (En proceso)
+                o queda reservado para un agente, para que el bot no responda encima. Se reanuda
+                cuando el chat vuelve a estar Pendiente y sin reservar.
+              </p>
+            </div>
+
             {/* Custom signing secret — collapsed toggle (field not yet in DTO, shown as info) */}
             <div className="rounded-lg border">
               <button
@@ -251,13 +299,13 @@ export function WebhookAddDialog({ open, onClose, onCreated }: WebhookAddDialogP
                 onClick={() => setSecretExpanded((v) => !v)}
                 className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-foreground hover:bg-accent/40 rounded-lg transition-colors"
               >
-                <span>Custom signing secret <span className="text-zinc-400 font-light text-xs">(optional)</span></span>
+                <span>Secreto de firma personalizado <span className="text-zinc-400 font-light text-xs">(opcional)</span></span>
                 {secretExpanded ? <ChevronUp className="size-4 text-zinc-400" /> : <ChevronDown className="size-4 text-zinc-400" />}
               </button>
               {secretExpanded && (
                 <div className="px-3 pb-3">
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    A unique signing secret is generated automatically. Custom secrets are coming in a future release.
+                    Se genera automáticamente un secreto de firma único. Los secretos personalizados llegarán en una versión futura.
                   </p>
                 </div>
               )}
@@ -267,7 +315,7 @@ export function WebhookAddDialog({ open, onClose, onCreated }: WebhookAddDialogP
 
             <DialogFooter showCloseButton>
               <Button type="submit" disabled={submitting || !!urlError}>
-                {submitting ? "Creating…" : "Create Webhook"}
+                {submitting ? "Creando…" : "Crear Webhook"}
               </Button>
             </DialogFooter>
           </form>

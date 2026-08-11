@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Check, CheckCheck, ChevronDown, FileText, ImageIcon, MapPin, BarChart3, MoreVertical, MoreHorizontal, SmilePlus, Download, Forward, Copy, Maximize2, Plus, Contact as ContactIcon } from "lucide-react"
+import { Bot, Check, CheckCheck, ChevronDown, FileText, ImageIcon, Lock, MapPin, BarChart3, MoreHorizontal, SmilePlus, Download, Forward, Copy, Maximize2, Plus, Contact as ContactIcon, UserRound, PhoneMissed, AlertTriangle } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { clockTime } from "./relative-time"
-import type { Conversation, InboxMessage } from "./types"
+import { agentName, ATTENTION_CLASSES, ATTENTION_DOT, ATTENTION_LABELS, ATTENTION_ORDER } from "./attention"
+import type { AttentionStatus, Conversation, InboxMessage } from "./types"
 
 function contactInitials(name: string): string {
   const parts = name.trim().split(/\s+/)
@@ -46,10 +47,10 @@ function ImageView({ src, alt }: { src: string; alt: string }) {
           <div className="flex justify-end">
             <a
               href={src}
-              download={alt && alt !== "image" ? alt : "wasphere-image.jpg"}
+              download={alt && alt !== "image" ? alt : "bchat-image.jpg"}
               className="inline-flex items-center gap-1.5 rounded-md border bg-background px-3 py-1.5 text-sm hover:bg-muted"
             >
-              <Download className="size-4" /> Download
+              <Download className="size-4" /> Descargar
             </a>
           </div>
         </DialogContent>
@@ -68,7 +69,7 @@ function VideoView({ src }: { src: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        title="Full view"
+        title="Vista completa"
         className="absolute right-1.5 top-1.5 rounded-full bg-black/50 p-1 text-white transition hover:bg-black/70"
       >
         <Maximize2 className="size-3.5" />
@@ -80,10 +81,10 @@ function VideoView({ src }: { src: string }) {
           <div className="flex justify-end">
             <a
               href={src}
-              download="wasphere-video.mp4"
+              download="bchat-video.mp4"
               className="inline-flex items-center gap-1.5 rounded-md border bg-background px-3 py-1.5 text-sm hover:bg-muted"
             >
-              <Download className="size-4" /> Download
+              <Download className="size-4" /> Descargar
             </a>
           </div>
         </DialogContent>
@@ -96,11 +97,11 @@ function MediaBlock({ m, onStartChat }: { m: InboxMessage; onStartChat?: (phone:
   const p = (m.payload ?? {}) as Record<string, unknown>
   const cap = (p.caption as string) || m.body
 
-  // Inbound messages WhatsApp couldn't decrypt (LID / unsupported) arrive empty.
+  // Inbound messages WhatsApp couldn’t decrypt (LID / unsupported) arrive empty.
   if (m.type === "unknown") {
     return (
       <span className="text-xs italic text-muted-foreground">
-        ⚠️ This message couldn’t be loaded (unsupported or encrypted).
+        ⚠️ Este mensaje no se pudo cargar (no compatible o cifrado).
       </span>
     )
   }
@@ -131,7 +132,7 @@ function MediaBlock({ m, onStartChat }: { m: InboxMessage; onStartChat?: (phone:
         <span className="flex items-start gap-2 px-2.5 py-2">
           <MapPin className="mt-0.5 size-4 shrink-0 text-red-500" />
           <span className="flex min-w-0 flex-col">
-            <span className="truncate text-xs font-medium">{name || "Location"}</span>
+            <span className="truncate text-xs font-medium">{name || "Ubicación"}</span>
             {addr && <span className="line-clamp-2 text-[11px] opacity-70">{addr}</span>}
             {!name && !addr && hasCoords && <span className="text-[11px] opacity-70">{lat}, {lng}</span>}
           </span>
@@ -140,9 +141,20 @@ function MediaBlock({ m, onStartChat }: { m: InboxMessage; onStartChat?: (phone:
     )
   }
 
+  // Rejected incoming call — WhatsApp couldn't be answered, so we auto-rejected
+  // and auto-replied. Shown as a compact call-log row.
+  if (m.type === "call") {
+    return (
+      <span className="flex items-center gap-2 text-xs">
+        <PhoneMissed className="size-4 shrink-0 text-red-500" />
+        <span>{m.body || "📞 Llamada rechazada automáticamente"}</span>
+      </span>
+    )
+  }
+
   // Contact — WhatsApp-style: avatar circle + name + phone.
   if (m.type === "contact") {
-    const name = (p.displayName as string) || (p.name as string) || m.body || "Contact"
+    const name = (p.displayName as string) || (p.name as string) || m.body || "Contacto"
     const phone = (p.phoneNumber as string) || (p.phone as string) || ""
     return (
       <div className="-mx-1 flex w-60 max-w-full flex-col gap-1.5 rounded-lg bg-background/40 p-2.5">
@@ -161,7 +173,7 @@ function MediaBlock({ m, onStartChat }: { m: InboxMessage; onStartChat?: (phone:
             onClick={() => onStartChat(phone)}
             className="rounded-md border border-current/20 py-1 text-center text-xs font-medium text-primary transition hover:bg-primary/10"
           >
-            Message
+            Mensaje
           </button>
         )}
       </div>
@@ -183,6 +195,10 @@ function MediaBlock({ m, onStartChat }: { m: InboxMessage; onStartChat?: (phone:
   const isAudio = m.type === "audio" && src
   const isDoc = m.type === "document" && src
   const fileName = (p.fileName as string) || "file"
+  // Media types carry a binary; when mediaUrl is null the server couldn't
+  // download/decrypt it (e.g. @lid contacts, transient network). Show a clear
+  // "unavailable" state instead of a dead, unclickable box.
+  const missingMedia = (m.type === "image" || m.type === "sticker" || m.type === "video" || m.type === "audio" || m.type === "document") && !src
   return (
     <div className="flex flex-col gap-1">
       {isImage ? (
@@ -202,6 +218,14 @@ function MediaBlock({ m, onStartChat }: { m: InboxMessage; onStartChat?: (phone:
           <span className="truncate text-xs">{label.text}</span>
           <Download className="ml-auto size-3.5 shrink-0 opacity-70" />
         </a>
+      ) : missingMedia ? (
+        <div className="flex items-start gap-2 rounded-md border border-dashed border-amber-500/40 bg-amber-500/10 px-2 py-1.5">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
+          <div className="flex flex-col">
+            <span className="truncate text-xs font-medium">{label.text}</span>
+            <span className="text-[11px] text-muted-foreground">Archivo no disponible — no se pudo descargar</span>
+          </div>
+        </div>
       ) : (
         <div className="flex items-center gap-2 rounded-md bg-background/40 px-2 py-1.5">
           <label.Icon className="size-4 shrink-0 opacity-80" />
@@ -284,7 +308,7 @@ function ReactButton({ m, onReact }: { m: InboxMessage; onReact: (m: InboxMessag
             onClick={(ev) => { ev.preventDefault(); setShowAll(true) }}
             className="ml-0.5 rounded-full bg-muted p-1.5 text-muted-foreground transition hover:bg-muted-foreground/20"
             type="button"
-            title="More emojis"
+            title="Más emojis"
           >
             <Plus className="size-4" />
           </button>
@@ -306,12 +330,12 @@ function MsgMenu({ m, onForward }: { m: InboxMessage; onForward: (m: InboxMessag
       <DropdownMenuContent align={m.fromMe ? "end" : "start"}>
         {canForward && (
           <DropdownMenuItem onClick={() => onForward(m)}>
-            <Forward className="mr-2 size-4" /> Forward
+            <Forward className="mr-2 size-4" /> Reenviar
           </DropdownMenuItem>
         )}
         {m.body && (
           <DropdownMenuItem onClick={() => void navigator.clipboard.writeText(m.body ?? "")}>
-            <Copy className="mr-2 size-4" /> Copy text
+            <Copy className="mr-2 size-4" /> Copiar texto
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>
@@ -363,7 +387,8 @@ export function ThreadView({
   conversation,
   messages,
   loading,
-  onResolveToggle,
+  lockedBy,
+  onAttentionChange,
   onReact,
   onForward,
   onStartChat,
@@ -373,7 +398,9 @@ export function ThreadView({
   conversation: Conversation
   messages: InboxMessage[]
   loading: boolean
-  onResolveToggle: () => void
+  // Set when another agent has this chat EN_PROCESO: read-only for this user.
+  lockedBy?: string | null
+  onAttentionChange?: (a: AttentionStatus) => void
   onReact?: (m: InboxMessage, emoji: string) => void
   onForward?: (m: InboxMessage) => void
   onStartChat?: (phone: string) => void
@@ -403,6 +430,9 @@ export function ThreadView({
   }
 
   const archived = !!conversation.sessionDeletedAt
+  // Solved chats are write-locked until the customer writes again (auto-reopen)
+  // or an owner/admin reopens them manually.
+  const solvedLock = conversation.attention === "SOLUCIONADO"
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -423,22 +453,78 @@ export function ThreadView({
                   : "shrink-0 border-transparent bg-emerald-500/10 text-[10px] text-emerald-600 dark:text-emerald-400"
               }
             >
-              {provider === "meta" ? "Meta" : "WaSphere"}
+              {provider === "meta" ? "Meta" : "BChat"}
             </Badge>
           )}
           <span className="hidden text-xs text-muted-foreground sm:inline">· {conversation.sessionId}</span>
-          {conversation.status === "RESOLVED" && <Badge variant="secondary" className="text-[10px]">Resolved</Badge>}
+          {conversation.status === "RESOLVED" && <Badge variant="secondary" className="text-[10px]">Resuelto</Badge>}
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-8" />}>
-            <MoreVertical className="size-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onResolveToggle}>
-              {conversation.status === "RESOLVED" ? "Reopen" : "Mark resolved"}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {/* who is handling this chat (null = AI bot) */}
+          <Badge
+            variant="secondary"
+            className={cn(
+              "hidden gap-1 border-transparent text-[10px] sm:inline-flex",
+              conversation.assignedTo
+                ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                : "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+            )}
+            title={conversation.assignedTo ? conversation.assignedTo.email : "Atendido por el bot de IA"}
+          >
+            {conversation.assignedTo ? <UserRound className="size-3" /> : <Bot className="size-3" />}
+            {agentName(conversation.assignedTo)}
+          </Badge>
+          {/* attention state: static badge when solved (locked), selector otherwise */}
+          {lockedBy ? (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium",
+                ATTENTION_CLASSES[conversation.attention ?? "EN_PROCESO"],
+              )}
+              title={`Chat a cargo de ${lockedBy} — solo lectura`}
+            >
+              <Lock className="size-3" />
+              {ATTENTION_LABELS[conversation.attention ?? "EN_PROCESO"]}
+            </span>
+          ) : solvedLock ? (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium",
+                ATTENTION_CLASSES.SOLUCIONADO,
+              )}
+              title="Bloqueado — se reabrirá cuando el cliente escriba de nuevo"
+            >
+              <Lock className="size-3" />
+              {ATTENTION_LABELS.SOLUCIONADO}
+            </span>
+          ) : onAttentionChange ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition hover:opacity-80",
+                      ATTENTION_CLASSES[conversation.attention ?? "PENDIENTE"],
+                    )}
+                    title="Cambiar estado de atención"
+                  />
+                }
+              >
+                {ATTENTION_LABELS[conversation.attention ?? "PENDIENTE"]}
+                <ChevronDown className="size-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {ATTENTION_ORDER.map((a) => (
+                  <DropdownMenuItem key={a} onClick={() => onAttentionChange(a)} disabled={a === conversation.attention}>
+                    <span className={cn("mr-2 size-2 rounded-full", ATTENTION_DOT[a])} />
+                    {ATTENTION_LABELS[a]}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+        </div>
       </div>
 
       {/* messages */}
@@ -453,7 +539,7 @@ export function ThreadView({
           </div>
         ) : ordered.length === 0 ? (
           <div className="flex h-full items-center justify-center">
-            <p className="text-sm text-muted-foreground">No messages in this conversation yet.</p>
+            <p className="text-sm text-muted-foreground">Aún no hay mensajes en esta conversación.</p>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -478,10 +564,20 @@ export function ThreadView({
         )}
       </div>
 
-      {/* composer / archived banner */}
+      {/* composer / archived / solved banner */}
       {archived ? (
         <div className="border-t bg-muted/40 px-4 py-3 text-center text-xs text-muted-foreground">
-          Session deleted — this is a read-only archive.
+          Sesión eliminada — esto es un archivo de solo lectura.
+        </div>
+      ) : solvedLock ? (
+        <div className="border-t bg-emerald-500/5 px-4 py-3 text-center text-xs text-muted-foreground">
+          ✅ Chat solucionado y bloqueado — se reabrirá automáticamente solo cuando el cliente escriba de nuevo.
+        </div>
+      ) : lockedBy ? (
+        <div className="flex items-center justify-center gap-1.5 border-t bg-blue-500/5 px-4 py-3 text-center text-xs text-muted-foreground">
+          <Lock className="size-3.5 shrink-0" />
+          Chat a cargo de <span className="font-medium text-foreground">{lockedBy}</span> — solo lectura.
+          Podrás intervenir cuando vuelva a Pendiente.
         </div>
       ) : (
         children

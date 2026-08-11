@@ -19,13 +19,13 @@ export function VideoForm({ onSubmit, submitting }: FormProps) {
 
   const fillSample = () => {
     setUrl(SAMPLE_VIDEO_URL)
-    setCaption("Sample video")
+    setCaption("Video de ejemplo")
     setError("")
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!url.trim()) { setError("Video URL or file is required."); return }
+    if (!url.trim()) { setError("Se requiere una URL o archivo de video."); return }
     setError("")
     const body: Record<string, unknown> = { url: url.trim() }
     if (caption.trim()) body.caption = caption.trim()
@@ -35,9 +35,9 @@ export function VideoForm({ onSubmit, submitting }: FormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex items-center justify-between pb-1">
-        <span className="text-xs text-muted-foreground">Fill in the fields below</span>
+        <span className="text-xs text-muted-foreground">Completa los campos a continuación</span>
         <Button type="button" size="xs" variant="outline" onClick={fillSample}>
-          Fill Sample
+          Rellenar ejemplo
         </Button>
       </div>
       <MediaInput
@@ -47,13 +47,13 @@ export function VideoForm({ onSubmit, submitting }: FormProps) {
       />
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="video-caption">
-          Caption <span className="text-muted-foreground font-normal">(optional)</span>
+          Descripción <span className="text-muted-foreground font-normal">(opcional)</span>
         </Label>
-        <Textarea id="video-caption" placeholder="Video caption…" value={caption}
+        <Textarea id="video-caption" placeholder="Descripción del video…" value={caption}
           onChange={(e) => setCaption(e.target.value)} rows={2} />
       </div>
       <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Sending…" : "Send Message"}
+        {submitting ? "Enviando…" : "Enviar mensaje"}
       </Button>
     </form>
   )

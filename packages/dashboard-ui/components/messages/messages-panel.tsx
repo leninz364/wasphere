@@ -71,7 +71,7 @@ function LivePill({ status }: { status: string }) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full border border-green-200 dark:border-green-800/50 bg-green-50 dark:bg-green-950/30 px-2 py-0.5 text-[11px] font-medium text-green-800 dark:text-green-300 shrink-0">
         <span className="inline-block size-1.5 rounded-full bg-green-500 animate-pulse" />
-        Live
+        En vivo
       </span>
     )
   }
@@ -79,14 +79,14 @@ function LivePill({ status }: { status: string }) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-300 shrink-0">
         <span className="inline-block size-1.5 rounded-full bg-amber-500 animate-pulse" />
-        QR Pending
+        QR pendiente
       </span>
     )
   }
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-950/30 px-2 py-0.5 text-[11px] font-medium text-red-800 dark:text-red-300 shrink-0">
       <span className="inline-block size-1.5 rounded-full bg-red-500" />
-      Offline
+      Desconectado
     </span>
   )
 }
@@ -166,13 +166,13 @@ export function MessagesPanel({ sessions, sessionsError }: MessagesPanelProps) {
     isFetchingRef.current = true
     try {
       const res = await fetch(`/api/messages/bulk/${jobId}`)
-      if (!res.ok) { clearPoller(); setPollingJobId(null); toast.error("Failed to fetch job status."); return }
+      if (!res.ok) { clearPoller(); setPollingJobId(null); toast.error("No se pudo obtener el estado del trabajo."); return }
       const job: BulkJob = (await res.json()) as BulkJob
       setBulkJob(job)
-      if (job.status === "completed") { clearPoller(); setPollingJobId(null); toast.success("Bulk send completed.") }
-      else if (job.status === "failed") { clearPoller(); setPollingJobId(null); toast.error("Bulk send failed.") }
+      if (job.status === "completed") { clearPoller(); setPollingJobId(null); toast.success("Envío masivo completado.") }
+      else if (job.status === "failed") { clearPoller(); setPollingJobId(null); toast.error("El envío masivo falló.") }
     } catch {
-      clearPoller(); setPollingJobId(null); toast.error("Could not reach the server.")
+      clearPoller(); setPollingJobId(null); toast.error("No se pudo conectar con el servidor.")
     } finally { isFetchingRef.current = false }
   }, [])
 
@@ -185,7 +185,7 @@ export function MessagesPanel({ sessions, sessionsError }: MessagesPanelProps) {
   }, [pollingJobId, pollJob])
 
   const handleFormSubmit = async (body: Record<string, unknown>) => {
-    if (!to.trim()) { setToError("Recipient is required."); return }
+    if (!to.trim()) { setToError("El destinatario es obligatorio."); return }
     setToError("")
     setSubmitting(true)
     setResponseState("loading")
@@ -209,7 +209,7 @@ export function MessagesPanel({ sessions, sessionsError }: MessagesPanelProps) {
     } catch {
       setResponseState("error")
       setResponseTimestamp(new Date().toISOString())
-      setResponseData({ message: "Could not reach WA Server. Check Settings → WA Server configuration." })
+      setResponseData({ message: "No se pudo conectar con el servidor WA. Revisa Configuración → Servidor WA." })
       setResponseStatusCode(undefined)
     } finally { setSubmitting(false) }
   }
@@ -218,8 +218,8 @@ export function MessagesPanel({ sessions, sessionsError }: MessagesPanelProps) {
     e.preventDefault()
     const recipientList = recipients.split("\n").map((r) => r.trim()).filter(Boolean)
     const errors: Partial<Record<"recipients" | "text", string>> = {}
-    if (recipientList.length === 0) errors.recipients = "At least one recipient is required."
-    if (!bulkText.trim()) errors.text = "Message text is required."
+    if (recipientList.length === 0) errors.recipients = "Se requiere al menos un destinatario."
+    if (!bulkText.trim()) errors.text = "El texto del mensaje es obligatorio."
     if (Object.keys(errors).length > 0) { setBulkErrors(errors); return }
     setBulkErrors({})
     setBulkSubmitting(true)
@@ -231,11 +231,11 @@ export function MessagesPanel({ sessions, sessionsError }: MessagesPanelProps) {
         body: JSON.stringify({ sessionId: selectedSessionId, recipients: recipientList, text: bulkText.trim(), delayMs: bulkDelayMs }),
       })
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
-      if (!res.ok) { toast.error(typeof data.message === "string" ? data.message : "Failed to start bulk send."); return }
+      if (!res.ok) { toast.error(typeof data.message === "string" ? data.message : "No se pudo iniciar el envío masivo."); return }
       const jobId = typeof data.jobId === "string" ? data.jobId : typeof data.id === "string" ? data.id : ""
-      if (jobId) { setPollingJobId(jobId); setBulkJob(data as BulkJob); toast.success("Bulk job started.") }
-      else { toast.success("Bulk send initiated.") }
-    } catch { toast.error("Could not reach the server.") }
+      if (jobId) { setPollingJobId(jobId); setBulkJob(data as BulkJob); toast.success("Trabajo masivo iniciado.") }
+      else { toast.success("Envío masivo iniciado.") }
+    } catch { toast.error("No se pudo conectar con el servidor.") }
     finally { setBulkSubmitting(false) }
   }
 
@@ -252,8 +252,8 @@ export function MessagesPanel({ sessions, sessionsError }: MessagesPanelProps) {
           <Send size={18} className="text-primary" />
         </div>
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">Messages</h1>
-          <p className="text-sm text-muted-foreground">Test and send WhatsApp messages.</p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Mensajes</h1>
+          <p className="text-sm text-muted-foreground">Prueba y envía mensajes de WhatsApp.</p>
         </div>
       </div>
 
@@ -266,16 +266,16 @@ export function MessagesPanel({ sessions, sessionsError }: MessagesPanelProps) {
       {sessions.length === 0 && !sessionsError && (
         <EmptyState
           illustration={<MessagesIllustration />}
-          message="No sessions yet"
-          description="Create a session to start sending messages."
-          action={<a href="/dashboard/sessions" className="text-sm font-medium text-primary underline underline-offset-2">Go to Sessions</a>}
+          message="Aún no hay sesiones"
+          description="Crea una sesión para empezar a enviar mensajes."
+          action={<a href="/dashboard/sessions" className="text-sm font-medium text-primary underline underline-offset-2">Ir a Sesiones</a>}
         />
       )}
       {noConnected && sessions.length > 0 && (
         <div className="rounded-lg border border-amber-400/40 bg-amber-50/60 dark:bg-amber-900/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
-          No connected sessions.{" "}
-          <a href="/dashboard/sessions" className="font-medium underline underline-offset-2">Go to Sessions</a>{" "}
-          and connect a WhatsApp account.
+          No hay sesiones conectadas.{" "}
+          <a href="/dashboard/sessions" className="font-medium underline underline-offset-2">Ir a Sesiones</a>{" "}
+          y conecta una cuenta de WhatsApp.
         </div>
       )}
 
@@ -286,11 +286,11 @@ export function MessagesPanel({ sessions, sessionsError }: MessagesPanelProps) {
             {/* Session */}
             <div className="flex items-center gap-2">
               <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
-                Session
+                Sesión
               </Label>
               <Select value={selectedSessionId} onValueChange={(v) => { if (v) setSelectedSessionId(v) }}>
                 <SelectTrigger className="h-7 w-40 text-xs">
-                  <SelectValue placeholder="Select session" />
+                  <SelectValue placeholder="Selecciona una sesión" />
                 </SelectTrigger>
                 <SelectContent>
                   {sessions.map((s) => (
@@ -311,7 +311,7 @@ export function MessagesPanel({ sessions, sessionsError }: MessagesPanelProps) {
             {/* Mode toggle */}
             <div className="flex items-center gap-2">
               <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
-                Mode
+                Modo
               </Label>
               <div className="flex gap-0.5 p-0.5 bg-muted rounded-lg">
                 {(["single", "bulk"] as const).map((tab) => (
@@ -324,7 +324,7 @@ export function MessagesPanel({ sessions, sessionsError }: MessagesPanelProps) {
                       activeTab === tab ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    {tab === "single" ? "Single" : "Bulk"}
+                    {tab === "single" ? "Individual" : "Masivo"}
                   </button>
                 ))}
               </div>
@@ -336,7 +336,7 @@ export function MessagesPanel({ sessions, sessionsError }: MessagesPanelProps) {
                 <div className="h-4 w-px bg-border hidden sm:block" />
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
-                    To
+                    Para
                   </Label>
                   <div className="flex gap-0.5 p-0.5 bg-muted rounded-md shrink-0">
                     {(["personal", "group"] as const).map((t) => (
@@ -345,11 +345,11 @@ export function MessagesPanel({ sessions, sessionsError }: MessagesPanelProps) {
                         type="button"
                         onClick={() => setRecipientType(t)}
                         className={cn(
-                          "px-2.5 py-0.5 text-xs font-medium rounded transition-all duration-150 cursor-pointer capitalize",
+                          "px-2.5 py-0.5 text-xs font-medium rounded transition-all duration-150 cursor-pointer",
                           recipientType === t ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                         )}
                       >
-                        {t}
+                        {t === "personal" ? "Personal" : "Grupo"}
                       </button>
                     ))}
                   </div>
@@ -389,7 +389,7 @@ export function MessagesPanel({ sessions, sessionsError }: MessagesPanelProps) {
               {/* Compose card */}
               <Card>
                 <CardHeader className="px-4 py-2 border-b border-border/60">
-                  <CardTitle className="text-sm font-semibold text-foreground">Compose</CardTitle>
+                  <CardTitle className="text-sm font-semibold text-foreground">Redactar</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 flex flex-col gap-3">
                   <MessageTypeSelector value={messageType} onChange={(t) => { setMessageType(t); setPreviewData({}) }} />
@@ -405,17 +405,17 @@ export function MessagesPanel({ sessions, sessionsError }: MessagesPanelProps) {
           {activeTab === "bulk" && (
             <Card>
               <CardHeader className="px-4 pt-3.5 pb-2.5 border-b border-border/60">
-                <CardTitle className="text-sm font-semibold">Bulk Send</CardTitle>
+                <CardTitle className="text-sm font-semibold">Envío masivo</CardTitle>
               </CardHeader>
               <CardContent className="p-4">
                 <form onSubmit={handleBulkSubmit} className="flex flex-col gap-4">
                   <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary/80 dark:text-primary/70">
-                    Bulk send supports <strong>text messages</strong> only. Up to 50 recipients per job.
+                    El envío masivo solo admite <strong>mensajes de texto</strong>. Hasta 50 destinatarios por trabajo.
                   </div>
 
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="bulk-recipients" className="text-sm font-medium">
-                      Recipients <span className="text-muted-foreground font-normal">(one JID per line, max 50)</span>
+                      Destinatarios <span className="text-muted-foreground font-normal">(un JID por línea, máx. 50)</span>
                     </Label>
                     <Textarea id="bulk-recipients" placeholder={"447911123456@s.whatsapp.net\n447911654321@s.whatsapp.net"}
                       value={recipients} onChange={(e) => setRecipients(e.target.value)} rows={4} />
@@ -424,44 +424,44 @@ export function MessagesPanel({ sessions, sessionsError }: MessagesPanelProps) {
 
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="bulk-text" className="text-sm font-medium">Message</Label>
+                      <Label htmlFor="bulk-text" className="text-sm font-medium">Mensaje</Label>
                       <span className="text-xs text-muted-foreground tabular-nums">{bulkText.length} / 65536</span>
                     </div>
-                    <Textarea id="bulk-text" placeholder="Type your message…"
+                    <Textarea id="bulk-text" placeholder="Escribe tu mensaje…"
                       value={bulkText} onChange={(e) => setBulkText(e.target.value)} rows={3} />
                     {bulkErrors.text && <p className="text-xs text-destructive">{bulkErrors.text}</p>}
                   </div>
 
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="bulk-delay" className="text-sm font-medium">Delay Between Sends</Label>
+                      <Label htmlFor="bulk-delay" className="text-sm font-medium">Retraso entre envíos</Label>
                       <span className="text-xs font-mono font-medium text-primary tabular-nums">{(bulkDelayMs / 1000).toFixed(1)}s</span>
                     </div>
                     <input id="bulk-delay" type="range" min={1000} max={10000} step={500}
                       value={bulkDelayMs} onChange={(e) => setBulkDelayMs(Number(e.target.value))}
                       className="w-full accent-primary h-1.5 rounded-full cursor-pointer" />
-                    <p className="text-xs text-muted-foreground">Recommended 2–5 s to avoid rate limits.</p>
+                    <p className="text-xs text-muted-foreground">Se recomiendan 2–5 s para evitar límites de tasa.</p>
                   </div>
 
                   <Button type="submit" disabled={bulkSubmitting || pollingJobId !== null} className="w-fit">
-                    {bulkSubmitting ? "Starting…" : "Send to All"}
+                    {bulkSubmitting ? "Iniciando…" : "Enviar a todos"}
                   </Button>
 
                   {bulkJob && (
                     <div className="rounded-lg border bg-muted/40 px-4 py-3 flex flex-col gap-2">
                       {bulkJob.status === "completed" ? (
                         <p className="text-sm font-medium text-green-600 dark:text-green-400">
-                          Completed{typeof bulkJob.sent === "number" && typeof bulkJob.total === "number" && ` — ${bulkJob.sent} / ${bulkJob.total} sent`}
+                          Completado{typeof bulkJob.sent === "number" && typeof bulkJob.total === "number" && ` — ${bulkJob.sent} / ${bulkJob.total} enviados`}
                         </p>
                       ) : bulkJob.status === "failed" ? (
-                        <p className="text-sm font-medium text-destructive">Failed</p>
+                        <p className="text-sm font-medium text-destructive">Fallido</p>
                       ) : (
                         <>
                           <div className="flex items-center justify-between text-sm">
                             <div className="flex items-center gap-2 text-muted-foreground">
                               <div className="size-3.5 animate-spin rounded-full border-2 border-muted border-t-primary" />
                               <span>{typeof bulkJob.sent === "number" && typeof bulkJob.total === "number"
-                                ? `Sending… ${bulkJob.sent} / ${bulkJob.total}` : `Status: ${bulkJob.status}`}</span>
+                                ? `Enviando… ${bulkJob.sent} / ${bulkJob.total}` : `Estado: ${bulkJob.status}`}</span>
                             </div>
                             {bulkProgress !== null && <span className="text-xs font-mono text-primary">{bulkProgress}%</span>}
                           </div>
@@ -497,7 +497,7 @@ export function MessagesPanel({ sessions, sessionsError }: MessagesPanelProps) {
             >
               <div className="flex items-center gap-2">
                 <Clock size={13} />
-                <span>API response appears here after send</span>
+                <span>La respuesta de la API aparece aquí tras el envío</span>
               </div>
               <ChevronDown size={13} />
             </button>

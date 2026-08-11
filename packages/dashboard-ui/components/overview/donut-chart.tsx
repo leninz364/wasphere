@@ -24,7 +24,7 @@ export function DonutChart({ data }: { data: DonutSlice[] }) {
   if (!data.length) {
     return (
       <p className="text-sm text-zinc-400 py-4 text-center">
-        No messages sent today yet.
+        Aún no se han enviado mensajes hoy.
       </p>
     )
   }

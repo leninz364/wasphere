@@ -20,7 +20,7 @@ export function RecipientInput({ value, onChange, error }: RecipientInputProps) 
 
   return (
     <div className="flex flex-col gap-1.5">
-      <Label>Recipient</Label>
+      <Label>Destinatario</Label>
       <div className="flex gap-1 p-0.5 bg-muted rounded-lg w-fit">
         <Button
           type="button"
@@ -41,7 +41,7 @@ export function RecipientInput({ value, onChange, error }: RecipientInputProps) 
           onClick={() => setRecipientType("group")}
           className="text-xs"
         >
-          Group
+          Grupo
         </Button>
       </div>
       <Input

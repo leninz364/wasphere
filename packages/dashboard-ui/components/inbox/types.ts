@@ -1,5 +1,26 @@
 export type ConversationStatus = "OPEN" | "RESOLVED" | "SNOOZED"
 
+// Agent attention workflow. PENDIENTE = the AI bot is the (implicit) first
+// responder; EN_PROCESO = a human agent took over; ATENDIDO/SOLUCIONADO =
+// closed by the agent (locks the assignment).
+export type AttentionStatus = "PENDIENTE" | "EN_PROCESO" | "ATENDIDO" | "SOLUCIONADO"
+
+export interface AssignedAgent {
+  id: string
+  email: string
+  // "Nombre Apellido" when the profile is filled in
+  name?: string | null
+}
+
+// One row of the "Atención realizada" trail. actor null = the AI bot / system.
+export interface ConversationEvent {
+  id: string
+  type: "assigned" | "attention_changed" | "status_changed" | "reopened" | string
+  detail: Record<string, unknown> | null
+  createdAt: string
+  actor: AssignedAgent | null
+}
+
 export interface InboxContact {
   id: string
   phone: string
@@ -7,6 +28,9 @@ export interface InboxContact {
   savedName: string | null
   whatsappName: string | null
   avatarUrl: string | null
+  // accumulated (average) customer rating across agents, 1–5 (null = not rated)
+  rating: number | null
+  ratingCount: number
 }
 
 export interface Conversation {
@@ -18,8 +42,47 @@ export interface Conversation {
   unreadCount: number
   tags: string[]
   sessionDeletedAt: string | null
+  // soft-deleted (hidden) by an admin; only shown in the "Archivados" view
+  archived?: boolean
   notes?: string | null
+  attention: AttentionStatus
+  // null = the AI bot is handling this chat
+  assignedTo: AssignedAgent | null
+  // delegated to an agent group / department / location
+  delegatedGroup: { id: string; name: string } | null
+  // reserved (delegated) directly to a specific agent; the chat stays PENDIENTE
+  // but is exclusive to this agent until taken over or released
+  delegatedToUser: AssignedAgent | null
   contact: InboxContact
+}
+
+export interface DelegationGroup {
+  id: string
+  name: string
+}
+
+// A workspace agent that a chat can be delegated (reserved) to.
+export interface DelegationAgent {
+  id: string
+  name: string
+  email: string
+  role: "OWNER" | "ADMIN" | "MEMBER"
+}
+
+// One inbox-bell entry: a chat delegated to a group I belong to, or reserved
+// directly to me. For a direct reservation `groupName` holds the target agent's
+// name and `note` the optional message the delegating agent attached.
+export interface InboxNotification {
+  id: string
+  conversationId: string
+  contactName: string
+  groupId: string | null
+  groupName: string | null
+  note?: string | null
+  // who delegated the chat
+  actor: AssignedAgent | null
+  createdAt: string
+  seen: boolean
 }
 
 export type MessageDirection = "INBOUND" | "OUTBOUND"

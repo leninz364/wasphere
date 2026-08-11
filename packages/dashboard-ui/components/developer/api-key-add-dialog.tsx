@@ -57,30 +57,30 @@ function KeyDisplay({ rawKey, onDone }: { rawKey: string; onDone: () => void }) 
       <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
         <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
         <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
-          This key will not be shown again. Copy it now and store it securely.
+          Esta clave no se mostrará nuevamente. Cópiala ahora y guárdala de forma segura.
         </p>
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label className="text-sm font-medium text-foreground">API Key</Label>
+        <Label className="text-sm font-medium text-foreground">Clave de API</Label>
         <div className="flex items-center gap-2">
           <Input
             value={rawKey}
             readOnly
             className="font-mono text-xs"
-            aria-label="New API key"
+            aria-label="Nueva clave de API"
           />
           <Button
             variant="outline"
             size="icon"
             onClick={handleCopy}
-            aria-label={copied ? "Copied" : "Copy key"}
+            aria-label={copied ? "Copiado" : "Copiar clave"}
           >
             {copied ? <Check className="size-4 text-green-600" /> : <Copy className="size-4" />}
           </Button>
         </div>
       </div>
       <DialogFooter>
-        <Button onClick={onDone}>I&apos;ve saved it</Button>
+        <Button onClick={onDone}>Ya la guardé</Button>
       </DialogFooter>
     </div>
   )
@@ -99,7 +99,6 @@ export function ApiKeyAddDialog({ open, onClose, onCreated }: ApiKeyAddDialogPro
   const [selectedPerms, setSelectedPerms] = React.useState<string[]>([])
   const [wildcard, setWildcard] = React.useState(false)
   const [sessionId, setSessionId] = React.useState<string>("__all__")
-  const [expiresAt, setExpiresAt] = React.useState("")
   const [sessions, setSessions] = React.useState<Session[]>([])
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -115,7 +114,7 @@ export function ApiKeyAddDialog({ open, onClose, onCreated }: ApiKeyAddDialogPro
 
   const reset = () => {
     setName(""); setSelectedPerms([]); setWildcard(false)
-    setSessionId("__all__"); setExpiresAt(""); setError(null)
+    setSessionId("__all__"); setError(null)
     setRawKey(null); setSubmitting(false)
   }
 
@@ -137,7 +136,7 @@ export function ApiKeyAddDialog({ open, onClose, onCreated }: ApiKeyAddDialogPro
     e.preventDefault()
     setError(null)
     const perms = wildcard ? ["*"] : selectedPerms
-    if (perms.length === 0) { setError("Select at least one permission."); return }
+    if (perms.length === 0) { setError("Selecciona al menos un permiso."); return }
 
     setSubmitting(true)
     try {
@@ -146,7 +145,6 @@ export function ApiKeyAddDialog({ open, onClose, onCreated }: ApiKeyAddDialogPro
         permissions: perms,
       }
       if (sessionId !== "__all__") body.sessionId = sessionId
-      if (expiresAt) body.expiresAt = new Date(expiresAt).toISOString()
 
       const res = await fetch("/api/developer/api-keys", {
         method: "POST",
@@ -157,14 +155,14 @@ export function ApiKeyAddDialog({ open, onClose, onCreated }: ApiKeyAddDialogPro
       if (!res.ok) {
         const msg = Array.isArray(data.message)
           ? (data.message as string[]).join("\n")
-          : (data.message ?? "Failed to create key.")
+          : (data.message ?? "No se pudo crear la clave.")
         setError(msg)
         return
       }
       setRawKey(data.rawKey ?? data.key ?? null)
       onCreated(data as ApiKey)
     } catch {
-      setError("Could not reach the server.")
+      setError("No se pudo comunicar con el servidor.")
     } finally {
       setSubmitting(false)
     }
@@ -174,7 +172,7 @@ export function ApiKeyAddDialog({ open, onClose, onCreated }: ApiKeyAddDialogPro
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
       <DialogContent showCloseButton className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{rawKey ? "Key Created" : "Add API Key"}</DialogTitle>
+          <DialogTitle>{rawKey ? "Clave creada" : "Agregar clave de API"}</DialogTitle>
         </DialogHeader>
 
         {rawKey ? (
@@ -184,11 +182,11 @@ export function ApiKeyAddDialog({ open, onClose, onCreated }: ApiKeyAddDialogPro
             {/* Name */}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="key-name" className="text-sm font-medium text-foreground">
-                Name
+                Nombre
               </Label>
               <Input
                 id="key-name"
-                placeholder="e.g. Production integration"
+                placeholder="p. ej. Integración de producción"
                 className="placeholder:text-zinc-400 placeholder:font-light"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -201,13 +199,13 @@ export function ApiKeyAddDialog({ open, onClose, onCreated }: ApiKeyAddDialogPro
             {/* Permissions */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium text-foreground">Permissions</Label>
+                <Label className="text-sm font-medium text-foreground">Permisos</Label>
                 <label className="flex items-center gap-1.5 cursor-pointer select-none">
                   <Checkbox
                     checked={wildcard}
                     onCheckedChange={(v) => handleWildcard(v === true)}
                   />
-                  <span className="text-xs text-zinc-700 dark:text-zinc-300">Select all (*)</span>
+                  <span className="text-xs text-zinc-700 dark:text-zinc-300">Seleccionar todas (*)</span>
                 </label>
               </div>
               <div className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-lg border p-3">
@@ -236,15 +234,15 @@ export function ApiKeyAddDialog({ open, onClose, onCreated }: ApiKeyAddDialogPro
             {/* Session scope */}
             <div className="flex flex-col gap-1.5">
               <Label className="text-sm font-medium text-foreground">
-                Session Scope
-                <span className="ml-1 text-zinc-400 font-light">(optional)</span>
+                Alcance de sesión
+                <span className="ml-1 text-zinc-400 font-light">(opcional)</span>
               </Label>
               <Select value={sessionId} onValueChange={(v) => setSessionId(v ?? "__all__")}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">All sessions</SelectItem>
+                  <SelectItem value="__all__">Todas las sesiones</SelectItem>
                   {sessions.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.id}
@@ -254,26 +252,15 @@ export function ApiKeyAddDialog({ open, onClose, onCreated }: ApiKeyAddDialogPro
               </Select>
             </div>
 
-            {/* Expires */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="key-expires" className="text-sm font-medium text-foreground">
-                Expires
-                <span className="ml-1 text-zinc-400 font-light">(optional)</span>
-              </Label>
-              <Input
-                id="key-expires"
-                type="datetime-local"
-                value={expiresAt}
-                onChange={(e) => setExpiresAt(e.target.value)}
-                className="placeholder:text-zinc-400 placeholder:font-light"
-              />
-            </div>
+            <p className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+              La clave será permanente y solo dejará de funcionar cuando la elimines.
+            </p>
 
             {error && <p className="text-xs text-destructive whitespace-pre-line">{error}</p>}
 
             <DialogFooter showCloseButton>
               <Button type="submit" disabled={submitting}>
-                {submitting ? "Creating…" : "Create Key"}
+                {submitting ? "Creando…" : "Crear clave"}
               </Button>
             </DialogFooter>
           </form>

@@ -11,15 +11,16 @@ import {
 } from "@/components/ui/breadcrumb";
 
 const SEGMENT_LABELS: Record<string, string> = {
-  overview: "Overview",
-  sessions: "Sessions",
-  messages: "Messages",
+  overview: "Resumen",
+  sessions: "Sesiones",
+  messages: "Mensajes",
+  connections: "Conexiones",
   webhooks: "Webhooks",
-  developer: "Developer",
-  "api-reference": "API Reference",
-  logs: "Request Log",
-  settings: "Settings",
-  "style-guide": "Style Guide",
+  developer: "Desarrollador",
+  "api-reference": "Referencia de API",
+  logs: "Registro de solicitudes",
+  settings: "Configuración",
+  "style-guide": "Guía de estilo",
 };
 
 export function AppBreadcrumb() {

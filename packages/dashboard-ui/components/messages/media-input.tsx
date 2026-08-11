@@ -93,7 +93,7 @@ export function MediaInput({
                 : "text-muted-foreground hover:bg-muted"
             )}
           >
-            Upload
+            Subir
           </button>
         </div>
       </div>
@@ -132,17 +132,17 @@ export function MediaInput({
               </p>
               {fileSize !== null && (
                 <p className="text-xs text-muted-foreground">
-                  {formatBytes(fileSize)} — click to change
+                  {formatBytes(fileSize)} — haz clic para cambiar
                 </p>
               )}
               {loading && (
-                <p className="text-xs text-muted-foreground">Converting…</p>
+                <p className="text-xs text-muted-foreground">Convirtiendo…</p>
               )}
             </>
           ) : (
             <>
               <p className="text-sm text-muted-foreground">
-                Click to upload or drag & drop
+                Haz clic para subir o arrastra y suelta
               </p>
               <p className="text-xs text-muted-foreground/60">
                 {accept.replace(/,/g, ", ")}

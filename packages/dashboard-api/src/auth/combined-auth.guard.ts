@@ -19,7 +19,7 @@ export class CombinedAuthGuard extends AuthGuard('jwt') {
     if (typeof authHeader === 'string' && authHeader.startsWith('Bearer wsk_')) {
       const token = authHeader.slice(7);
       const apiKeyUser = await this.apiKeysService.validateApiKey(token);
-      if (!apiKeyUser) throw new UnauthorizedException('Invalid or expired API key');
+      if (!apiKeyUser) throw new UnauthorizedException('Invalid or deleted API key');
       request.user = apiKeyUser;
       return true;
     }

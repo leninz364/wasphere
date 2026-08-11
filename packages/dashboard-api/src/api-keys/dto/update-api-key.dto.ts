@@ -1,8 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsArray,
-  IsBoolean,
-  IsDateString,
   IsOptional,
   IsString,
   MaxLength,
@@ -25,12 +23,6 @@ export class UpdateApiKeyDto {
   @IsString({ each: true })
   @IsOptional()
   permissions?: string[];
-
-  @ApiPropertyOptional({ example: false, description: 'Activate or deactivate the key.' })
-  @IsBoolean()
-  @IsOptional()
-  isActive?: boolean;
-
   @ApiPropertyOptional({
     example: 'abc123',
     description: 'Restrict key to a single session ID. Pass null to remove restriction.',
@@ -39,13 +31,4 @@ export class UpdateApiKeyDto {
   @IsString()
   @IsOptional()
   sessionId?: string | null;
-
-  @ApiPropertyOptional({
-    example: '2027-01-01T00:00:00Z',
-    description: 'Update expiry. Pass null to remove expiry.',
-    nullable: true,
-  })
-  @IsDateString()
-  @IsOptional()
-  expiresAt?: string | null;
 }

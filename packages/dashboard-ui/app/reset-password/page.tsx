@@ -22,8 +22,8 @@ function ResetForm() {
   if (!token) {
     return (
       <p className="mt-8 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
-        This reset link is missing its token. Request a new one from the{" "}
-        <Link href="/forgot-password" className="underline">forgot-password page</Link>.
+        A este enlace le falta el token. Solicita uno nuevo desde la{" "}
+        <Link href="/forgot-password" className="underline">página de recuperación</Link>.
       </p>
     );
   }
@@ -33,11 +33,11 @@ function ResetForm() {
     setError(null);
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError("La contraseña debe tener al menos 8 caracteres.");
       return;
     }
     if (password !== confirm) {
-      setError("Passwords do not match.");
+      setError("Las contraseñas no coinciden.");
       return;
     }
 
@@ -51,14 +51,14 @@ function ResetForm() {
 
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { message?: string };
-        setError(body.message ?? "This reset link is invalid or has expired.");
+        setError(body.message ?? "Este enlace es inválido o ha expirado.");
         return;
       }
 
       setDone(true);
       setTimeout(() => router.push("/login"), 2000);
     } catch {
-      setError("Could not reach the server. Please try again.");
+      setError("No se pudo conectar con el servidor. Inténtalo de nuevo.");
     } finally {
       setLoading(false);
     }
@@ -67,7 +67,7 @@ function ResetForm() {
   if (done) {
     return (
       <div className="mt-8 rounded-md border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
-        Your password has been reset. Redirecting you to sign in…
+        Tu contraseña ha sido restablecida. Redirigiendo al inicio de sesión…
       </div>
     );
   }
@@ -81,7 +81,7 @@ function ResetForm() {
       )}
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="password">New password</Label>
+        <Label htmlFor="password">Nueva contraseña</Label>
         <Input
           id="password"
           type="password"
@@ -95,7 +95,7 @@ function ResetForm() {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="confirm">Confirm new password</Label>
+        <Label htmlFor="confirm">Confirmar nueva contraseña</Label>
         <Input
           id="confirm"
           type="password"
@@ -109,7 +109,7 @@ function ResetForm() {
       </div>
 
       <Button type="submit" className="w-full mt-1" disabled={loading}>
-        {loading ? "Resetting…" : "Reset password"}
+        {loading ? "Restableciendo…" : "Restablecer contraseña"}
       </Button>
     </form>
   );
@@ -121,12 +121,12 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 flex items-center gap-2">
           <MessageSquare className="text-primary" size={22} />
-          <span className="text-lg font-bold tracking-tight">WaSphere</span>
+          <span className="text-lg font-bold tracking-tight">BChat</span>
         </div>
 
-        <h1 className="text-2xl font-semibold tracking-tight">Choose a new password</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Elige una nueva contraseña</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Enter a new password for your account.
+          Ingresa una nueva contraseña para tu cuenta.
         </p>
 
         <Suspense>
@@ -135,7 +135,7 @@ export default function ResetPasswordPage() {
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
           <Link href="/login" className="text-primary hover:underline">
-            Back to sign in
+            Volver a iniciar sesión
           </Link>
         </p>
       </div>

@@ -15,8 +15,8 @@ export interface SessionConfig {
 
 export const SESSION_CONFIG_DEFAULTS: SessionConfig = {
   // Human-like anti-ban delay on every new session by default (users can change it).
-  random_delay_min_ms: 4000,
-  random_delay_max_ms: 12000,
+  random_delay_min_ms: 1000,
+  random_delay_max_ms: 3000,
   auto_read_on_receive: false,
   receive_enabled: true,
   max_messages_per_minute: 0, // unlimited by default (opt-in cap)

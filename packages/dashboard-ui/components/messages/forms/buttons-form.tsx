@@ -26,11 +26,11 @@ export function ButtonsForm({ onSubmit, submitting }: FormProps) {
 
   const fillSample = () => {
     setText(SAMPLE_TEXT)
-    setFooter("Powered by WaSphere")
+    setFooter("Con la tecnología de BChat")
     setButtons([
-      { id: "opt_1", text: "Option A" },
-      { id: "opt_2", text: "Option B" },
-      { id: "opt_3", text: "Option C" },
+      { id: "opt_1", text: "Opción A" },
+      { id: "opt_2", text: "Opción B" },
+      { id: "opt_3", text: "Opción C" },
     ])
     setErrors({})
   }
@@ -54,11 +54,11 @@ export function ButtonsForm({ onSubmit, submitting }: FormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const errs: Record<string, string> = {}
-    if (!text.trim()) errs.text = "Body text is required."
-    if (!footer.trim()) errs.footer = "Footer is required."
+    if (!text.trim()) errs.text = "El texto del cuerpo es obligatorio."
+    if (!footer.trim()) errs.footer = "El pie de página es obligatorio."
     buttons.forEach((b, i) => {
-      if (!b.id.trim()) errs[`btn_id_${i}`] = "Button ID is required."
-      if (!b.text.trim()) errs[`btn_text_${i}`] = "Button text is required."
+      if (!b.id.trim()) errs[`btn_id_${i}`] = "El ID del botón es obligatorio."
+      if (!b.text.trim()) errs[`btn_text_${i}`] = "El texto del botón es obligatorio."
     })
     if (Object.keys(errs).length > 0) {
       setErrors(errs)
@@ -75,22 +75,22 @@ export function ButtonsForm({ onSubmit, submitting }: FormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex items-center justify-between pb-1">
-        <span className="text-xs text-muted-foreground">Fill in the fields below</span>
+        <span className="text-xs text-muted-foreground">Completa los campos a continuación</span>
         <Button type="button" size="xs" variant="outline" onClick={fillSample}>
-          Fill Sample
+          Rellenar ejemplo
         </Button>
       </div>
       <div className="rounded-lg border border-amber-400/40 bg-amber-50/60 dark:bg-amber-900/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
-        WhatsApp has deprecated interactive buttons for personal accounts. Recipients on newer WhatsApp versions may see plain text instead.
+        WhatsApp descontinuó los botones interactivos para cuentas personales. Los destinatarios con versiones más recientes de WhatsApp podrían ver solo texto plano.
       </div>
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
-          <Label htmlFor="btn-text">Body Text</Label>
+          <Label htmlFor="btn-text">Texto del cuerpo</Label>
           <span className="text-xs text-muted-foreground">{text.length}/1024</span>
         </div>
         <Textarea
           id="btn-text"
-          placeholder="Message body…"
+          placeholder="Cuerpo del mensaje…"
           value={text}
           onChange={(e) => setText(e.target.value)}
           maxLength={1024}
@@ -101,12 +101,12 @@ export function ButtonsForm({ onSubmit, submitting }: FormProps) {
 
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
-          <Label htmlFor="btn-footer">Footer</Label>
+          <Label htmlFor="btn-footer">Pie de página</Label>
           <span className="text-xs text-muted-foreground">{footer.length}/60</span>
         </div>
         <Input
           id="btn-footer"
-          placeholder="Footer text"
+          placeholder="Texto del pie de página"
           value={footer}
           onChange={(e) => setFooter(e.target.value)}
           maxLength={60}
@@ -117,12 +117,12 @@ export function ButtonsForm({ onSubmit, submitting }: FormProps) {
       </div>
 
       <div className="flex flex-col gap-3">
-        <Label>Buttons ({buttons.length}/3)</Label>
+        <Label>Botones ({buttons.length}/3)</Label>
         {buttons.map((btn, i) => (
           <div key={i} className="flex flex-col gap-2 rounded-lg border p-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-muted-foreground">
-                Button {i + 1}
+                Botón {i + 1}
               </span>
               {buttons.length > 1 && (
                 <Button
@@ -131,7 +131,7 @@ export function ButtonsForm({ onSubmit, submitting }: FormProps) {
                   variant="destructive"
                   onClick={() => removeButton(i)}
                 >
-                  Remove
+                  Quitar
                 </Button>
               )}
             </div>
@@ -154,11 +154,11 @@ export function ButtonsForm({ onSubmit, submitting }: FormProps) {
               </div>
               <div className="flex flex-col gap-1">
                 <Label htmlFor={`btn-text-${i}`} className="text-xs">
-                  Text
+                  Texto
                 </Label>
                 <Input
                   id={`btn-text-${i}`}
-                  placeholder="Click me"
+                  placeholder="Haz clic"
                   value={btn.text}
                   onChange={(e) => updateButton(i, "text", e.target.value)}
                 />
@@ -179,12 +179,12 @@ export function ButtonsForm({ onSubmit, submitting }: FormProps) {
           disabled={buttons.length >= 3}
           className="w-fit"
         >
-          + Add Button
+          + Agregar botón
         </Button>
       </div>
 
       <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Sending…" : "Send Message"}
+        {submitting ? "Enviando…" : "Enviar mensaje"}
       </Button>
     </form>
   )

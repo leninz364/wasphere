@@ -96,9 +96,12 @@ export class InboxSseService implements OnModuleDestroy {
   private dispatch(ev: InboxEvent): void {
     const set = this.byWorkspace.get(ev.workspaceId);
     if (!set || set.size === 0) return;
-    const frame = `event: ${ev.type}\ndata: ${JSON.stringify(ev)}\n\n`;
+    // Targeted events (e.g. delegation) only reach the listed users.
+    const { recipientUserIds, ...wire } = ev;
+    const frame = `event: ${ev.type}\ndata: ${JSON.stringify(wire)}\n\n`;
     for (const conn of set) {
       if (conn.res.writableEnded) continue;
+      if (recipientUserIds && !recipientUserIds.includes(conn.userId)) continue;
       conn.res.write(frame);
       conn.lastEventAt = Date.now();
     }

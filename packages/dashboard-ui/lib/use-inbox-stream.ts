@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react"
 
 interface StreamEvent {
-  type: "message.new" | "conversation.update" | "message.status"
+  type: "message.new" | "conversation.update" | "message.status" | "delegation"
   workspaceId: string
   conversationId?: string
   payload?: Record<string, unknown>
@@ -13,6 +13,8 @@ export interface InboxStreamHandlers {
   onMessageNew?: (ev: StreamEvent) => void
   onConversationUpdate?: (ev: StreamEvent) => void
   onMessageStatus?: (ev: StreamEvent) => void
+  /** A chat was delegated to a group the current user belongs to. */
+  onDelegation?: (ev: StreamEvent) => void
   /** Called every 15s while the SSE stream is NOT connected (polling fallback). */
   onPollFallback?: () => void
   /** Connection state changes (for a UI indicator). */
@@ -55,6 +57,10 @@ export function useInboxStream(handlers: InboxStreamHandlers) {
     es.addEventListener("message.status", (e) => {
       const ev = parse(e as MessageEvent)
       if (ev) ref.current.onMessageStatus?.(ev)
+    })
+    es.addEventListener("delegation", (e) => {
+      const ev = parse(e as MessageEvent)
+      if (ev) ref.current.onDelegation?.(ev)
     })
     es.addEventListener("error", () => {
       if (connected) ref.current.onConnectionChange?.(false)

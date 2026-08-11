@@ -4,11 +4,14 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { ApiKeysModule } from '../api-keys/api-keys.module';
 import { InboxController } from './inbox.controller';
+import { InboxNotificationsController } from './inbox-notifications.controller';
 import { InboxSseController } from './inbox-sse.controller';
+import { ReportsController } from './reports.controller';
 import { InboxService } from './inbox.service';
 import { InboxIngestService } from './inbox-ingest.service';
 import { InboxEventsService } from './inbox-events.service';
 import { InboxSseService } from './inbox-sse.service';
+import { ApiKeyPermissionGuard } from '../auth/api-key-permission.guard';
 
 // PrismaModule imported explicitly (its @Global export wasn't resolving into this
 // module's injector inside the ApiKeys<->Auth resolution chain).
@@ -24,8 +27,14 @@ import { InboxSseService } from './inbox-sse.service';
       signOptions: { algorithm: 'HS256' },
     }),
   ],
-  controllers: [InboxController, InboxSseController],
-  providers: [InboxService, InboxIngestService, InboxEventsService, InboxSseService],
+  controllers: [InboxController, InboxNotificationsController, InboxSseController, ReportsController],
+  providers: [
+    InboxService,
+    InboxIngestService,
+    InboxEventsService,
+    InboxSseService,
+    ApiKeyPermissionGuard,
+  ],
   // InboxIngestService -> consumed by InternalModule (ingestion hook)
   // InboxEventsService -> consumed by the SSE layer
   exports: [InboxIngestService, InboxEventsService],

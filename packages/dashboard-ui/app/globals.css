@@ -130,38 +130,38 @@
 }
 
 .dark {
-  /* WhatsApp-green accent, deep navy base — hex avoids oklch gamut clipping */
-  --background: #080c14;
-  --foreground: #e8edf5;
-  --card: #0e1420;
-  --card-foreground: #e8edf5;
-  --popover: #162030;
-  --popover-foreground: #a8b4c4;
+  /* WhatsApp-green accent, deep navy base — lightened 10% for readability */
+  --background: #21242c;
+  --foreground: #eaeff6;
+  --card: #262c36;
+  --card-foreground: #eaeff6;
+  --popover: #2d3645;
+  --popover-foreground: #b1bcca;
   --primary: #22c55e;
   --primary-foreground: #052e16;
-  --secondary: #162030;
-  --secondary-foreground: #e8edf5;
-  --muted: #0c1218;
-  --muted-foreground: #5a6a80;
-  --accent: #1e2d40;
-  --accent-foreground: #e8edf5;
+  --secondary: #2d3645;
+  --secondary-foreground: #eaeff6;
+  --muted: #242a2f;
+  --muted-foreground: #6b798d;
+  --accent: #354253;
+  --accent-foreground: #eaeff6;
   --destructive: oklch(0.480 0.150 25);
   --destructive-foreground: oklch(0.970 0 0);
-  --border: #1a2535;
-  --input: #162030;
+  --border: #313b49;
+  --input: #2d3645;
   --ring: #22c55e;
   --chart-1: #22c55e;
   --chart-2: oklch(0.7137 0.1434 254.6240);
   --chart-3: oklch(0.7090 0.1592 293.5412);
   --chart-4: oklch(0.8369 0.1644 84.4286);
   --chart-5: oklch(0.7845 0.1325 181.9120);
-  --sidebar: #080c14;
-  --sidebar-foreground: #6e8090;
+  --sidebar: #21242c;
+  --sidebar-foreground: #7d8d9b;
   --sidebar-primary: #22c55e;
   --sidebar-primary-foreground: #052e16;
-  --sidebar-accent: #1e2d40;
-  --sidebar-accent-foreground: #e8edf5;
-  --sidebar-border: #131e2c;
+  --sidebar-accent: #354253;
+  --sidebar-accent-foreground: #eaeff6;
+  --sidebar-border: #2b3541;
   --sidebar-ring: #22c55e;
   --radius: 0.35rem;
   --font-sans: Outfit, sans-serif;

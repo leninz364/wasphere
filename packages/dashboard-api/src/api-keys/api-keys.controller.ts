@@ -25,6 +25,7 @@ import { RequireCapability } from '../auth/require-capability.decorator';
 import { ApiKeysService } from './api-keys.service';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { UpdateApiKeyDto } from './dto/update-api-key.dto';
+import { VerifyApiKeyDto } from './dto/verify-api-key.dto';
 
 interface AuthenticatedRequest extends Request {
   user: { userId: string; email: string };
@@ -66,7 +67,7 @@ export class ApiKeysController {
   }
 
   @Patch(':keyId')
-  @ApiOperation({ summary: 'Update an API key (name, permissions, active status, expiry)' })
+  @ApiOperation({ summary: 'Update an API key (name, permissions, session scope)' })
   @ApiParam({ name: 'workspaceId', description: 'Workspace UUID' })
   @ApiParam({ name: 'keyId', description: 'API key UUID' })
   @ApiResponse({ status: 200, description: 'Updated key metadata' })
@@ -84,9 +85,9 @@ export class ApiKeysController {
 
   @Post(':keyId/rotate')
   @ApiOperation({
-    summary: 'Rotate an API key',
+    summary: 'Create an additional API key',
     description:
-      'Generates a new secret for the key. The old key is immediately invalidated. Returns the new raw key once.',
+      'Creates a new permanent secret with the same configuration. The existing key remains valid until explicitly deleted.',
   })
   @ApiParam({ name: 'workspaceId', description: 'Workspace UUID' })
   @ApiParam({ name: 'keyId', description: 'API key UUID' })
@@ -99,6 +100,18 @@ export class ApiKeysController {
     @Param('keyId') keyId: string,
   ) {
     return this.apiKeysService.rotate(req.user.userId, workspaceId, keyId);
+  }
+
+  @Post(':keyId/verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify a newly issued API key without marking it as used' })
+  verify(
+    @Req() req: AuthenticatedRequest,
+    @Param('workspaceId') workspaceId: string,
+    @Param('keyId') keyId: string,
+    @Body() dto: VerifyApiKeyDto,
+  ) {
+    return this.apiKeysService.verifySecret(req.user.userId, workspaceId, keyId, dto.key);
   }
 
   @Delete(':keyId')

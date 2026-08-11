@@ -81,7 +81,13 @@ export class SessionsService {
       if (!metaCreds?.phoneNumberId || !metaCreds?.accessToken) {
         throw new BadRequestException('Meta sessions require phoneNumberId and accessToken.');
       }
-      return this.meta.init(
+      if (!metaCreds.verifyToken) {
+        throw new BadRequestException('Meta sessions require a webhook verify token.');
+      }
+      if (!metaCreds.appSecret) {
+        throw new BadRequestException('Meta sessions require the App Secret to verify inbound webhooks.');
+      }
+      const result = await this.meta.init(
         sessionId,
         {
           kind: 'meta',
@@ -93,6 +99,13 @@ export class SessionsService {
         },
         config,
       );
+      if (result.status !== 'connected') {
+        await this.meta.destroy(sessionId);
+        throw new BadRequestException(
+          result.lastDisconnectReason || 'Meta credential validation failed.',
+        );
+      }
+      return result;
     }
 
     if (config?.random_delay_min_ms !== undefined && config?.random_delay_max_ms !== undefined) {

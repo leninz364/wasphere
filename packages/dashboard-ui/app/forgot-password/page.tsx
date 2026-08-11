@@ -34,24 +34,24 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 flex items-center gap-2">
           <MessageSquare className="text-primary" size={22} />
-          <span className="text-lg font-bold tracking-tight">WaSphere</span>
+          <span className="text-lg font-bold tracking-tight">BChat</span>
         </div>
 
-        <h1 className="text-2xl font-semibold tracking-tight">Reset your password</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Restablece tu contraseña</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Enter your email and we&apos;ll send you a reset link.
+          Ingresa tu correo y te enviaremos un enlace para restablecerla.
         </p>
 
         {sent ? (
           <div className="mt-8 rounded-md border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
-            If an account exists for <strong className="text-foreground">{email}</strong>, a
-            password-reset link is on its way. Check your inbox (and spam folder). The link
-            expires in 1 hour.
+            Si existe una cuenta para <strong className="text-foreground">{email}</strong>, un
+            enlace de restablecimiento va en camino. Revisa tu bandeja de entrada (y la carpeta
+            de spam). El enlace expira en 1 hora.
           </div>
         ) : (
           <form className="mt-8 flex flex-col gap-5" onSubmit={handleSubmit}>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Correo electrónico</Label>
               <Input
                 id="email"
                 type="email"
@@ -65,15 +65,15 @@ export default function ForgotPasswordPage() {
             </div>
 
             <Button type="submit" className="w-full mt-1" disabled={loading}>
-              {loading ? "Sending…" : "Send reset link"}
+              {loading ? "Enviando…" : "Enviar enlace"}
             </Button>
           </form>
         )}
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          Remembered it?{" "}
+          ¿La recordaste?{" "}
           <Link href="/login" className="text-primary hover:underline">
-            Back to sign in
+            Volver a iniciar sesión
           </Link>
         </p>
       </div>

@@ -24,12 +24,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ApiKeysIllustration } from "@/components/empty-states"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { ApiKeyAddDialog } from "@/components/developer/api-key-add-dialog"
 import { ApiKeyEditDialog } from "@/components/developer/api-key-edit-dialog"
 
@@ -56,7 +51,7 @@ function formatDate(iso: string | null | undefined): string {
 
 function PermissionChips({ perms }: { perms: string[] }) {
   if (perms.length === 1 && perms[0] === "*")
-    return <Badge variant="secondary" className="font-mono text-xs">all (*)</Badge>
+    return <Badge variant="secondary" className="font-mono text-xs">todas (*)</Badge>
   return (
     <div className="flex flex-wrap gap-1">
       {perms.map((p) => (
@@ -86,11 +81,11 @@ function RotateConfirmDialog({ apiKey, open, onClose, onRotated }: RotateDialogP
     try {
       const res = await fetch(`/api/developer/api-keys/${apiKey.id}/rotate`, { method: "POST" })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) { toast.error(data.message ?? "Rotation failed."); return }
+      if (!res.ok) { toast.error(data.message ?? "No se pudo crear la clave adicional."); return }
       setRawKey(data.rawKey ?? data.key ?? null)
       onRotated(data as ApiKey, data.rawKey ?? data.key ?? "")
     } catch {
-      toast.error("Could not reach the server.")
+      toast.error("No se pudo comunicar con el servidor.")
     } finally {
       setSubmitting(false)
     }
@@ -102,7 +97,7 @@ function RotateConfirmDialog({ apiKey, open, onClose, onRotated }: RotateDialogP
       await navigator.clipboard.writeText(rawKey)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch { toast.error("Failed to copy.") }
+    } catch { toast.error("No se pudo copiar.") }
   }
 
   const handleClose = () => { setRawKey(null); setCopied(false); onClose() }
@@ -111,39 +106,39 @@ function RotateConfirmDialog({ apiKey, open, onClose, onRotated }: RotateDialogP
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
       <DialogContent showCloseButton>
         <DialogHeader>
-          <DialogTitle>{rawKey ? "Key Rotated" : "Rotate API Key"}</DialogTitle>
+          <DialogTitle>{rawKey ? "Clave adicional creada" : "Crear clave adicional"}</DialogTitle>
         </DialogHeader>
         {rawKey ? (
           <div className="flex flex-col gap-4">
             <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
               <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
               <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                This key will not be shown again. Copy it now.
+                Esta clave no se mostrará nuevamente. Cópiala ahora.
               </p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label className="text-sm font-medium text-foreground">New API Key</Label>
+              <Label className="text-sm font-medium text-foreground">Nueva clave de API</Label>
               <div className="flex items-center gap-2">
                 <Input value={rawKey} readOnly className="font-mono text-xs" />
-                <Button variant="outline" size="icon" onClick={handleCopy} aria-label="Copy">
+                <Button variant="outline" size="icon" onClick={handleCopy} aria-label="Copiar">
                   {copied ? <Check className="size-4 text-green-600" /> : <Copy className="size-4" />}
                 </Button>
               </div>
             </div>
             <DialogFooter>
-              <Button onClick={handleClose}>I&apos;ve saved it</Button>
+              <Button onClick={handleClose}>Ya la guardé</Button>
             </DialogFooter>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
             <p className="text-sm text-zinc-700 dark:text-zinc-300">
-              Rotating{" "}
-              <span className="font-medium text-foreground">{apiKey?.name}</span>{" "}
-              will immediately invalidate the current key. Any integrations using it will stop working.
+              Se creará otra clave para{" "}
+              <span className="font-medium text-foreground">{apiKey?.name}</span>.
+              La clave actual seguirá funcionando hasta que la elimines explícitamente.
             </p>
             <DialogFooter showCloseButton>
-              <Button variant="destructive" onClick={handleRotate} disabled={submitting}>
-                {submitting ? "Rotating…" : "Rotate Key"}
+              <Button onClick={handleRotate} disabled={submitting}>
+                {submitting ? "Creando…" : "Crear clave adicional"}
               </Button>
             </DialogFooter>
           </div>
@@ -170,11 +165,11 @@ function DeleteConfirmDialog({ apiKey, open, onClose, onDeleted }: DeleteDialogP
     setSubmitting(true)
     try {
       const res = await fetch(`/api/developer/api-keys/${apiKey.id}`, { method: "DELETE" })
-      if (!res.ok) { const d = await res.json().catch(() => ({})); toast.error(d.message ?? "Delete failed."); return }
+      if (!res.ok) { const d = await res.json().catch(() => ({})); toast.error(d.message ?? "No se pudo eliminar."); return }
       onDeleted(apiKey.id)
       onClose()
     } catch {
-      toast.error("Could not reach the server.")
+      toast.error("No se pudo comunicar con el servidor.")
     } finally {
       setSubmitting(false)
     }
@@ -184,16 +179,16 @@ function DeleteConfirmDialog({ apiKey, open, onClose, onDeleted }: DeleteDialogP
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent showCloseButton>
         <DialogHeader>
-          <DialogTitle>Delete API Key</DialogTitle>
+          <DialogTitle>Eliminar clave de API</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-zinc-700 dark:text-zinc-300">
-          Permanently delete{" "}
+          ¿Eliminar permanentemente{" "}
           <span className="font-medium text-foreground">{apiKey?.name}</span>?
-          This cannot be undone.
+          No se puede deshacer.
         </p>
         <DialogFooter showCloseButton>
           <Button variant="destructive" onClick={handleDelete} disabled={submitting}>
-            {submitting ? "Deleting…" : "Delete"}
+            {submitting ? "Eliminando…" : "Eliminar"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -229,11 +224,11 @@ export function ApiKeysTab() {
     setFetchError(null)
     try {
       const res = await fetch("/api/developer/api-keys")
-      if (!res.ok) { setFetchError("Could not load API keys."); return }
+      if (!res.ok) { setFetchError("No se pudieron cargar las claves de API."); return }
       const data = await res.json()
       setKeys(Array.isArray(data) ? data : [])
     } catch {
-      setFetchError("Could not load API keys.")
+      setFetchError("No se pudieron cargar las claves de API.")
     } finally {
       setLoading(false)
     }
@@ -241,17 +236,14 @@ export function ApiKeysTab() {
 
   React.useEffect(() => { fetchKeys() }, [fetchKeys])
 
-  const activeKeyCount = keys.filter((k) => k.isActive).length
-  const isLastActive = (key: ApiKey) => key.isActive && activeKeyCount <= 1
-
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <p className="text-sm text-zinc-700 dark:text-zinc-300">
-            {keys.length > 0 ? `${keys.length} key${keys.length !== 1 ? "s" : ""}` : ""}
+            {keys.length > 0 ? `${keys.length} clave${keys.length !== 1 ? "s" : ""}` : ""}
           </p>
-          <Button size="sm" onClick={() => setAddOpen(true)}>Add API Key</Button>
+          <Button size="sm" onClick={() => setAddOpen(true)}>Agregar clave de API</Button>
         </div>
 
         {loading ? (
@@ -261,22 +253,22 @@ export function ApiKeysTab() {
         ) : keys.length === 0 ? (
           <EmptyState
             illustration={<ApiKeysIllustration />}
-            message="No API keys yet."
-            description="Create one to start using the API."
+            message="Aún no hay claves de API."
+            description="Crea una para empezar a usar la API."
           />
         ) : (
           <div className="rounded-xl border bg-card overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Name</TableHead>
-                  <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Key Prefix</TableHead>
-                  <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Permissions</TableHead>
-                  <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Session</TableHead>
-                  <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Last Used</TableHead>
-                  <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</TableHead>
-                  <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Created</TableHead>
-                  <TableHead className="text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Actions</TableHead>
+                  <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Nombre</TableHead>
+                  <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Prefijo de clave</TableHead>
+                  <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Permisos</TableHead>
+                  <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Sesión</TableHead>
+                  <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Último uso</TableHead>
+                  <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Estado</TableHead>
+                  <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Creado</TableHead>
+                  <TableHead className="text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -286,17 +278,15 @@ export function ApiKeysTab() {
                     <TableCell className="font-mono text-xs text-zinc-700 dark:text-zinc-300">{key.keyPrefix}…</TableCell>
                     <TableCell><PermissionChips perms={key.permissions} /></TableCell>
                     <TableCell className="font-mono text-xs text-zinc-700 dark:text-zinc-300">
-                      {key.sessionId ?? <span className="text-zinc-400 font-light">All</span>}
+                      {key.sessionId ?? <span className="text-zinc-400 font-light">Todas</span>}
                     </TableCell>
                     <TableCell className="text-xs text-zinc-400 font-light tabular-nums">{formatDate(key.lastUsedAt)}</TableCell>
                     <TableCell>
                       <Badge
-                        variant={key.isActive ? "secondary" : "outline"}
-                        className={key.isActive
-                          ? "bg-green-500/10 text-green-700 dark:text-green-400 border-transparent"
-                          : "text-zinc-500 border-zinc-200 dark:border-zinc-700"}
+                        variant="secondary"
+                        className="bg-green-500/10 text-green-700 dark:text-green-400 border-transparent"
                       >
-                        {key.isActive ? "Active" : "Inactive"}
+                        Permanente
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-zinc-400 font-light tabular-nums">{formatDate(key.createdAt)}</TableCell>
@@ -306,7 +296,7 @@ export function ApiKeysTab() {
                           variant="ghost"
                           size="icon"
                           onClick={() => setEditTarget(key)}
-                          aria-label="Edit key"
+                          aria-label="Editar clave"
                         >
                           <Pencil className="size-4" />
                         </Button>
@@ -314,33 +304,19 @@ export function ApiKeysTab() {
                           variant="ghost"
                           size="icon"
                           onClick={() => setRotateTarget(key)}
-                          aria-label="Rotate key"
+                          aria-label="Crear clave adicional"
                         >
                           <RotateCcw className="size-4" />
                         </Button>
-                        {isLastActive(key) ? (
-                          <Tooltip>
-                            <TooltipTrigger
-                              className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground opacity-50 cursor-not-allowed"
-                              aria-label="Delete disabled — last active key"
-                            >
-                              <Trash2 className="size-4" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              Workspace must have at least one active API key
-                            </TooltipContent>
-                          </Tooltip>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeleteTarget(key)}
-                            aria-label="Delete key"
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteTarget(key)}
+                          aria-label="Eliminar clave"
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -371,8 +347,8 @@ export function ApiKeysTab() {
           apiKey={rotateTarget}
           open={rotateTarget !== null}
           onClose={() => setRotateTarget(null)}
-          onRotated={(updated) => {
-            setKeys((prev) => prev.map((k) => k.id === updated.id ? updated : k))
+          onRotated={() => {
+            void fetchKeys()
           }}
         />
 

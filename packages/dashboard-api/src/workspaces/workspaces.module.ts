@@ -10,6 +10,6 @@ import { ApiKeysModule } from '../api-keys/api-keys.module';
   controllers: [WorkspacesController],
   providers: [WorkspacesService, EncryptionService, ProxyService],
   // WorkspacesService -> consumed by InboxModule (reply-send needs getDecryptedToken)
-  exports: [WorkspacesService],
+  exports: [WorkspacesService, EncryptionService],
 })
 export class WorkspacesModule {}

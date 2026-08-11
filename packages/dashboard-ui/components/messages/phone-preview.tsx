@@ -64,7 +64,7 @@ function MediaPlaceholder({ icon: Icon, height = 90, label }: { icon: React.Elem
 function BubbleContent({ type, data }: { type: MessageType; data: Record<string, unknown> }) {
   const text = (data.text as string) || ""
   const caption = (data.caption as string) || ""
-  const placeholder = <span style={{ opacity: 0.35, fontStyle: "italic" }}>Your message…</span>
+  const placeholder = <span style={{ opacity: 0.35, fontStyle: "italic" }}>Tu mensaje…</span>
 
   switch (type) {
     case "text":
@@ -73,7 +73,7 @@ function BubbleContent({ type, data }: { type: MessageType; data: Record<string,
     case "image":
       return (
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-          <MediaPlaceholder icon={ImageIcon} label="Image" />
+          <MediaPlaceholder icon={ImageIcon} label="Imagen" />
           {caption && <span style={{ fontSize: 12 }}>{caption}</span>}
         </div>
       )
@@ -156,7 +156,7 @@ function BubbleContent({ type, data }: { type: MessageType; data: Record<string,
           }}>
             <MapPin size={22} style={{ color: "#25D366" }} />
           </div>
-          <div style={{ fontSize: 11, opacity: 0.65 }}>Location shared</div>
+          <div style={{ fontSize: 11, opacity: 0.65 }}>Ubicación compartida</div>
         </div>
       )
 
@@ -170,8 +170,8 @@ function BubbleContent({ type, data }: { type: MessageType; data: Record<string,
             <UserRound size={16} style={{ color: "#fff" }} />
           </div>
           <div>
-            <div style={{ fontSize: 13 }}>Contact</div>
-            <div style={{ fontSize: 10, opacity: 0.5 }}>WhatsApp User</div>
+            <div style={{ fontSize: 13 }}>Contacto</div>
+            <div style={{ fontSize: 10, opacity: 0.5 }}>Usuario de WhatsApp</div>
           </div>
         </div>
       )
@@ -180,7 +180,7 @@ function BubbleContent({ type, data }: { type: MessageType; data: Record<string,
       return (
         <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
           <span style={{ whiteSpace: "pre-wrap", paddingBottom: 5 }}>{text || placeholder}</span>
-          {["Option A", "Option B", "Option C"].map((btn, i) => (
+          {["Opción A", "Opción B", "Opción C"].map((btn, i) => (
             <div key={i} style={{
               borderTop: "0.5px solid rgba(255,255,255,0.12)", paddingTop: 4,
               color: "#53bdeb", fontSize: 12, textAlign: "center", display: "flex",
@@ -202,7 +202,7 @@ function BubbleContent({ type, data }: { type: MessageType; data: Record<string,
             display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
             color: "#53bdeb", fontSize: 12,
           }}>
-            <List size={11} /> View list
+            <List size={11} /> Ver lista
           </div>
         </div>
       )
@@ -212,9 +212,9 @@ function BubbleContent({ type, data }: { type: MessageType; data: Record<string,
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <BarChart2 size={13} style={{ opacity: 0.7, color: "#fff" }} />
-            <span style={{ fontSize: 12, fontWeight: 600 }}>Poll</span>
+            <span style={{ fontSize: 12, fontWeight: 600 }}>Encuesta</span>
           </div>
-          {["Option 1", "Option 2", "Option 3"].map((o, i) => (
+          {["Opción 1", "Opción 2", "Opción 3"].map((o, i) => (
             <div key={i} style={{
               background: "rgba(255,255,255,0.07)", borderRadius: 4, padding: "3px 8px", fontSize: 12,
             }}>{o}</div>
@@ -226,7 +226,7 @@ function BubbleContent({ type, data }: { type: MessageType; data: Record<string,
       return (
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontSize: 22 }}>👍</span>
-          <span style={{ fontSize: 11, opacity: 0.55 }}>Reaction sent</span>
+          <span style={{ fontSize: 11, opacity: 0.55 }}>Reacción enviada</span>
         </div>
       )
 
@@ -235,14 +235,14 @@ function BubbleContent({ type, data }: { type: MessageType; data: Record<string,
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <Eye size={16} style={{ opacity: 0.6, color: "#fff" }} />
           <div>
-            <div style={{ fontSize: 12 }}>View Once</div>
-            <div style={{ fontSize: 10, opacity: 0.45 }}>Opens once, then disappears</div>
+            <div style={{ fontSize: 12 }}>Ver una vez</div>
+            <div style={{ fontSize: 10, opacity: 0.45 }}>Se abre una vez y luego desaparece</div>
           </div>
         </div>
       )
 
     default:
-      return <span style={{ opacity: 0.35 }}>Preview not available</span>
+      return <span style={{ opacity: 0.35 }}>Vista previa no disponible</span>
   }
 }
 
@@ -255,9 +255,9 @@ export function PhonePreview({ messageType, recipient, previewData }: PhonePrevi
       {/* Strip header */}
       <div className="flex items-center justify-between px-3 py-1.5">
         <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
-          Live Preview
+          Vista previa en vivo
         </span>
-        <span className="text-[10px] text-muted-foreground/35">updates as you type</span>
+        <span className="text-[10px] text-muted-foreground/35">se actualiza mientras escribes</span>
       </div>
 
       {/* Phone frame */}
@@ -278,7 +278,7 @@ export function PhonePreview({ messageType, recipient, previewData }: PhonePrevi
             <div style={{ color: "#e9edef", fontSize: 12, fontWeight: 500, lineHeight: 1.2 }}>
               {displayRecipient}
             </div>
-            <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 10 }}>online</div>
+            <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 10 }}>en línea</div>
           </div>
         </div>
 

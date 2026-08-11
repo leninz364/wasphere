@@ -2,10 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { EventEmitter } from 'events';
 
 export interface InboxEvent {
-  type: 'message.new' | 'conversation.update' | 'message.status';
+  type: 'message.new' | 'conversation.update' | 'message.status' | 'delegation';
   workspaceId: string;
   conversationId?: string;
   payload?: Record<string, unknown>;
+  // When set, the SSE layer only delivers the event to these users (e.g. the
+  // members of the group a chat was delegated to). Stripped before sending.
+  recipientUserIds?: string[];
 }
 
 /**

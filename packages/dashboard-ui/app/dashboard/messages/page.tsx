@@ -48,7 +48,7 @@ export default async function MessagesPage() {
     return (
       <MessagesPanel
         sessions={[]}
-        sessionsError="Could not load sessions. Check your WA Server connection in Settings."
+        sessionsError="No se pudieron cargar las sesiones. Revisa la conexión al servidor WA en Configuración."
       />
     )
   }

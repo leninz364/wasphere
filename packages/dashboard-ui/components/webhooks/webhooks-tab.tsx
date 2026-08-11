@@ -27,8 +27,10 @@ export interface Webhook {
   url: string
   events: string[]
   isActive: boolean
+  pauseOnHumanTakeover: boolean
   failureCount: number
   retryMax: number
+  hasBearerToken: boolean
   lastDeliveryAt: string | null
   createdAt: string
 }
@@ -62,13 +64,13 @@ function formatDate(iso: string | null | undefined): string {
 
 function EventChips({ events }: { events: string[] }) {
   if (events.length === 1 && events[0] === "*")
-    return <Badge variant="secondary" className="text-xs">All Events</Badge>
+    return <Badge variant="secondary" className="text-xs">Todos los eventos</Badge>
   const visible = events.slice(0, 2)
   const rest = events.length - visible.length
   return (
     <div className="flex flex-wrap gap-1">
       {visible.map((e) => <Badge key={e} variant="outline" className="text-xs">{eventLabel(e)}</Badge>)}
-      {rest > 0 && <Badge variant="outline" className="text-xs">+{rest} more</Badge>}
+      {rest > 0 && <Badge variant="outline" className="text-xs">+{rest} más</Badge>}
     </div>
   )
 }
@@ -96,7 +98,7 @@ function TestResultPanel({ result, onDismiss }: { result: TestState; onDismiss: 
     return (
       <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
         <Loader2 className="size-3.5 animate-spin" />
-        <span>Sending test event…</span>
+        <span>Enviando evento de prueba…</span>
       </div>
     )
   }
@@ -115,7 +117,7 @@ function TestResultPanel({ result, onDismiss }: { result: TestState; onDismiss: 
         {result.statusCode}
       </span>
       <span className="text-zinc-600 dark:text-zinc-400">
-        {result.success ? "Test delivered successfully." : (result.error ?? "Delivery failed.")}
+        {result.success ? "Prueba entregada con éxito." : (result.error ?? "Falla en la entrega.")}
       </span>
       <button onClick={onDismiss} className="ml-auto text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
         <X className="size-3" />
@@ -147,14 +149,14 @@ function DeleteConfirmDialog({
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent showCloseButton>
-        <DialogHeader><DialogTitle>Delete Webhook</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Eliminar Webhook</DialogTitle></DialogHeader>
         <p className="text-sm text-zinc-700 dark:text-zinc-300">
-          Permanently delete <span className="font-medium text-foreground">{webhook?.name}</span>?
-          This cannot be undone.
+          ¿Eliminar permanentemente <span className="font-medium text-foreground">{webhook?.name}</span>?
+          No se puede deshacer.
         </p>
         <DialogFooter showCloseButton>
           <Button variant="destructive" onClick={handleDelete} disabled={submitting}>
-            {submitting ? "Deleting…" : "Delete"}
+            {submitting ? "Eliminando…" : "Eliminar"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -177,10 +179,10 @@ export function WebhooksTab() {
     setLoading(true); setFetchError(null)
     try {
       const res = await fetch("/api/webhooks")
-      if (!res.ok) { setFetchError("Could not load webhooks."); return }
+      if (!res.ok) { setFetchError("No se pudieron cargar los webhooks."); return }
       const data = await res.json()
       setWebhooks(Array.isArray(data) ? data : [])
-    } catch { setFetchError("Could not load webhooks.") }
+    } catch { setFetchError("No se pudieron cargar los webhooks.") }
     finally { setLoading(false) }
   }, [])
 
@@ -207,7 +209,7 @@ export function WebhooksTab() {
           <p className="text-sm text-zinc-700 dark:text-zinc-300">
             {webhooks.length > 0 ? `${webhooks.length} webhook${webhooks.length !== 1 ? "s" : ""}` : ""}
           </p>
-          <Button size="sm" onClick={() => setAddOpen(true)}>Add Webhook</Button>
+          <Button size="sm" onClick={() => setAddOpen(true)}>Agregar Webhook</Button>
         </div>
 
         {loading ? (
@@ -217,8 +219,8 @@ export function WebhooksTab() {
         ) : webhooks.length === 0 ? (
           <EmptyState
             illustration={<WebhooksIllustration />}
-            message="No webhooks yet."
-            description="Add one to start receiving WhatsApp events at your endpoint."
+            message="Aún no hay webhooks."
+            description="Agrega uno para empezar a recibir eventos de WhatsApp en tu endpoint."
           />
         ) : (
           <div className="flex flex-col gap-2">
@@ -226,13 +228,13 @@ export function WebhooksTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Name</TableHead>
+                    <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Nombre</TableHead>
                     <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">URL</TableHead>
-                    <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Events</TableHead>
-                    <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</TableHead>
-                    <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Last Delivered</TableHead>
-                    <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Created</TableHead>
-                    <TableHead className="text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Actions</TableHead>
+                    <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Eventos</TableHead>
+                    <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Estado</TableHead>
+                    <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Última entrega</TableHead>
+                    <TableHead className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Creado</TableHead>
+                    <TableHead className="text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -255,7 +257,7 @@ export function WebhooksTab() {
                             ? "bg-green-500/10 text-green-700 dark:text-green-400 border-transparent"
                             : "text-zinc-500 border-zinc-200 dark:border-zinc-700"}
                         >
-                          {wh.isActive ? "Active" : "Inactive"}
+                          {wh.isActive ? "Activo" : "Inactivo"}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs text-zinc-400 font-light tabular-nums">{formatDate(wh.lastDeliveryAt)}</TableCell>
@@ -268,22 +270,22 @@ export function WebhooksTab() {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => handleTestFire(wh)}
-                                aria-label="Test fire"
+                                aria-label="Enviar prueba"
                                 disabled={testResults[wh.id] === "loading"}
                               >
                                 <Zap className="size-4" />
                               </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Send test event</TooltipContent>
+                            <TooltipContent>Enviar evento de prueba</TooltipContent>
                           </Tooltip>
-                          <Button variant="ghost" size="icon" onClick={() => setEditTarget(wh)} aria-label="Edit">
+                          <Button variant="ghost" size="icon" onClick={() => setEditTarget(wh)} aria-label="Editar">
                             <Pencil className="size-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => setDeleteTarget(wh)}
-                            aria-label="Delete"
+                            aria-label="Eliminar"
                             className="text-destructive hover:text-destructive"
                           >
                             <Trash2 className="size-4" />

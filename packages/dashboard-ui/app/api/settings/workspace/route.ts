@@ -23,7 +23,17 @@ export async function PATCH(request: Request) {
   const token = cookieStore.get("wa_access")?.value
   if (!token) return Response.json({ message: "Unauthorized" }, { status: 401 })
 
-  let body: { waServerUrl?: string; waServerToken?: string; name?: string; logo?: string }
+  let body: {
+    waServerUrl?: string
+    waServerToken?: string
+    name?: string
+    logo?: string
+    nameColor?: string
+    nameSize?: string
+    nameFont?: string
+    chatRetentionResolvedDays?: number | null
+    chatRetentionArchivedDays?: number | null
+  }
   try {
     body = await request.json()
   } catch {
@@ -41,10 +51,30 @@ export async function PATCH(request: Request) {
     return Response.json(data ?? { message: "Upstream error" }, { status })
   }
 
-  if (body.logo !== undefined || body.name !== undefined) {
+  if (
+    body.logo !== undefined ||
+    body.name !== undefined ||
+    body.nameColor !== undefined ||
+    body.nameSize !== undefined ||
+    body.nameFont !== undefined
+  ) {
     const { data, status } = await serverPatch(`/workspaces/${workspaceId}/branding`, token, {
       logo: body.logo,
       name: body.name,
+      nameColor: body.nameColor,
+      nameSize: body.nameSize,
+      nameFont: body.nameFont,
+    })
+    return Response.json(data ?? { message: "Upstream error" }, { status })
+  }
+
+  if (
+    body.chatRetentionResolvedDays !== undefined ||
+    body.chatRetentionArchivedDays !== undefined
+  ) {
+    const { data, status } = await serverPatch(`/workspaces/${workspaceId}/chat-retention`, token, {
+      chatRetentionResolvedDays: body.chatRetentionResolvedDays,
+      chatRetentionArchivedDays: body.chatRetentionArchivedDays,
     })
     return Response.json(data ?? { message: "Upstream error" }, { status })
   }

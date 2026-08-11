@@ -10,6 +10,7 @@ import { isValidEvents, WILDCARD_EVENT } from '../lib/webhook-events';
 import { deliverWebhook } from '../common/webhook-delivery';
 import { CreateWebhookDto } from './dto/create-webhook.dto';
 import { UpdateWebhookDto } from './dto/update-webhook.dto';
+import { EncryptionService } from '../workspaces/encryption.service';
 
 const PROD_URL_RE = /^https:\/\//i;
 const IS_PROD = process.env.NODE_ENV === 'production';
@@ -32,21 +33,45 @@ function validateUrl(url: string): void {
 
 const LIST_SELECT = {
   id: true,
+  apiKeyId: true,
+  provider: true,
   name: true,
   url: true,
   events: true,
   isActive: true,
+  pauseOnHumanTakeover: true,
   retryMax: true,
   failureCount: true,
   createdAt: true,
   lastDeliveredAt: true,
   lastFailedAt: true,
+  bearerTokenIv: true,
   // signingSecret intentionally excluded from list
 } as const;
 
 @Injectable()
 export class WebhooksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly encryption: EncryptionService,
+  ) {}
+
+  private toPublicWebhook<T extends { bearerTokenIv: string | null }>(webhook: T) {
+    const { bearerTokenIv, ...visible } = webhook;
+    return { ...visible, hasBearerToken: bearerTokenIv !== null };
+  }
+
+  getDeliveryAuthHeaders(webhook: {
+    bearerToken: string | null;
+    bearerTokenIv: string | null;
+  }): Record<string, string> {
+    if (!webhook.bearerToken && !webhook.bearerTokenIv) return {};
+    if (!webhook.bearerToken || !webhook.bearerTokenIv) {
+      throw new Error('WEBHOOK_BEARER_TOKEN_INCOMPLETE');
+    }
+    const token = this.encryption.decrypt(webhook.bearerToken, webhook.bearerTokenIv);
+    return { Authorization: `Bearer ${token}` };
+  }
 
   private async requireMembership(userId: string, workspaceId: string): Promise<void> {
     const m = await this.prisma.workspaceMember.findUnique({
@@ -63,18 +88,29 @@ export class WebhooksService {
     return wh;
   }
 
+  private async requireOwnedApiKey(workspaceId: string, apiKeyId?: string): Promise<void> {
+    if (!apiKeyId) return;
+    const key = await this.prisma.apiKey.findFirst({
+      where: { id: apiKeyId, workspaceId },
+      select: { id: true },
+    });
+    if (!key) throw new BadRequestException('API key does not belong to this workspace');
+  }
+
   async list(userId: string, workspaceId: string) {
     await this.requireMembership(userId, workspaceId);
-    return this.prisma.webhook.findMany({
+    const webhooks = await this.prisma.webhook.findMany({
       where: { workspaceId },
       orderBy: { createdAt: 'desc' },
       select: LIST_SELECT,
     });
+    return webhooks.map((webhook) => this.toPublicWebhook(webhook));
   }
 
   async create(userId: string, workspaceId: string, dto: CreateWebhookDto) {
     await this.requireMembership(userId, workspaceId);
     validateUrl(dto.url);
+    await this.requireOwnedApiKey(workspaceId, dto.apiKeyId);
 
     if (!isValidEvents(dto.events)) {
       throw new BadRequestException(
@@ -83,15 +119,23 @@ export class WebhooksService {
     }
 
     const signingSecret = generateSigningSecret();
+    const bearerCredential = dto.bearerToken
+      ? this.encryption.encrypt(dto.bearerToken)
+      : null;
 
     const wh = await this.prisma.webhook.create({
       data: {
         workspaceId,
+        apiKeyId: dto.apiKeyId,
+        provider: dto.provider ?? 'generic',
         name: dto.name,
         url: dto.url,
         events: dto.events,
         signingSecret,
+        bearerToken: bearerCredential?.ciphertext,
+        bearerTokenIv: bearerCredential?.iv,
         isActive: dto.isActive ?? true,
+        pauseOnHumanTakeover: dto.pauseOnHumanTakeover ?? true,
         retryMax: dto.retryMax ?? 3,
       },
       select: { ...LIST_SELECT, signingSecret: true },
@@ -101,12 +145,13 @@ export class WebhooksService {
       data: { method: 'POST', endpoint: 'webhook.created' },
     });
 
-    return wh; // signingSecret shown once on creation
+    return this.toPublicWebhook(wh); // signingSecret shown once on creation
   }
 
   async update(userId: string, workspaceId: string, webhookId: string, dto: UpdateWebhookDto) {
     await this.requireMembership(userId, workspaceId);
     await this.findOwned(workspaceId, webhookId);
+    await this.requireOwnedApiKey(workspaceId, dto.apiKeyId);
 
     if (dto.url) validateUrl(dto.url);
     if (dto.events !== undefined && !isValidEvents(dto.events)) {
@@ -114,22 +159,44 @@ export class WebhooksService {
         'Invalid events. Use known event types or ["*"] for all.',
       );
     }
+    if (dto.bearerToken !== undefined && dto.clearBearerToken) {
+      throw new BadRequestException(
+        'bearerToken and clearBearerToken cannot be used together.',
+      );
+    }
+
+    const bearerCredential = dto.bearerToken
+      ? this.encryption.encrypt(dto.bearerToken)
+      : null;
 
     const updated = await this.prisma.webhook.update({
       where: { id: webhookId },
       data: {
+        ...(dto.apiKeyId !== undefined && { apiKeyId: dto.apiKeyId }),
+        ...(dto.provider !== undefined && { provider: dto.provider }),
         ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.url !== undefined && { url: dto.url }),
         ...(dto.events !== undefined && { events: dto.events }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+        ...(dto.pauseOnHumanTakeover !== undefined && {
+          pauseOnHumanTakeover: dto.pauseOnHumanTakeover,
+        }),
         ...(dto.retryMax !== undefined && { retryMax: dto.retryMax }),
+        ...(bearerCredential && {
+          bearerToken: bearerCredential.ciphertext,
+          bearerTokenIv: bearerCredential.iv,
+        }),
+        ...(dto.clearBearerToken === true && {
+          bearerToken: null,
+          bearerTokenIv: null,
+        }),
         // Re-activate clears the failure counter
         ...(dto.isActive === true && { failureCount: 0 }),
       },
       select: LIST_SELECT,
     });
 
-    return updated;
+    return this.toPublicWebhook(updated);
   }
 
   async remove(userId: string, workspaceId: string, webhookId: string) {
@@ -164,6 +231,7 @@ export class WebhooksService {
       'X-WaSphere-Event': payload.event,
       'X-WaSphere-Signature': signature,
       'X-WaSphere-Timestamp': String(timestamp),
+      ...this.getDeliveryAuthHeaders(wh),
     });
     const { statusCode, success, error } = result;
 

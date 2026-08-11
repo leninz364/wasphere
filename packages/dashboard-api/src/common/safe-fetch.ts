@@ -43,7 +43,11 @@ export interface SafeFetchResponse {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+/** Budget for establishing the TCP (and, over https, TLS) connection. */
 const CONNECT_TIMEOUT_MS = 5_000;
+/** Budget for the peer to start answering once the request has been sent. */
+const RESPONSE_TIMEOUT_MS = 30_000;
+/** Budget for the response body to finish arriving. */
 const READ_TIMEOUT_MS = 30_000;
 const MAX_REDIRECTS = 3;
 
@@ -314,6 +318,9 @@ async function _fetch(
       : 80;
 
   const path = (parsedUrl.pathname || '/') + (parsedUrl.search || '');
+  const requestBody = options.body;
+  const requestBodyLength =
+    requestBody !== undefined ? Buffer.byteLength(requestBody) : null;
 
   return new Promise<InternalFetchResult>((resolve, reject) => {
     const baseOptions: http.RequestOptions = {
@@ -323,19 +330,44 @@ async function _fetch(
       method: options.method ?? 'GET',
       headers: {
         ...(options.headers ?? {}),
+        ...(requestBodyLength !== null
+          ? { 'Content-Length': String(requestBodyLength) }
+          : {}),
         Host: parsedUrl.hostname, // restore original hostname for TLS SNI and vhosts
       },
     };
     // rejectUnauthorized is an https-only option — only add it for https requests
     const reqOptions: http.RequestOptions | https.RequestOptions =
       scheme === 'https:'
-        ? { ...baseOptions, rejectUnauthorized: true } as https.RequestOptions
+        ? {
+            ...baseOptions,
+            rejectUnauthorized: true,
+            // We connect to a DNS-pinned IP, so provide the original hostname
+            // explicitly for certificate validation and virtual hosting.
+            servername: ipaddr.isValid(parsedUrl.hostname)
+              ? undefined
+              : parsedUrl.hostname,
+          } as https.RequestOptions
         : baseOptions;
 
     let connectTimedOut = false;
-    let readTimedOut = false;
+    let responseTimedOut = false;
+    let connectTimer: ReturnType<typeof setTimeout> | null = null;
+    let responseTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const clearTimers = (): void => {
+      if (connectTimer !== null) {
+        clearTimeout(connectTimer);
+        connectTimer = null;
+      }
+      if (responseTimer !== null) {
+        clearTimeout(responseTimer);
+        responseTimer = null;
+      }
+    };
 
     const req = lib.request(reqOptions, (res) => {
+      clearTimers();
       const status = res.statusCode ?? 0;
       const responseHeaders: Record<string, string> = {};
       for (const [k, v] of Object.entries(res.headers)) {
@@ -368,22 +400,50 @@ async function _fetch(
     });
 
     req.on('error', (err) => {
-      if (connectTimedOut) {
+      clearTimers();
+      if (connectTimedOut || responseTimedOut) {
         reject(new SsrfTimeoutError(rawUrl));
       } else {
         reject(err);
       }
     });
 
-    // Connect timeout: fires if connection is not established within 5s
-    req.setTimeout(CONNECT_TIMEOUT_MS, () => {
+    // Connecting and waiting for an answer get separate budgets, because
+    // `req.setTimeout` cannot express that: it is a socket *inactivity* timer,
+    // so spending it on the connect phase also caps how long the peer may take
+    // to reply. A receiver that thinks for eight seconds before responding —
+    // an AI agent behind an n8n webhook, typically — then looks exactly like an
+    // unreachable host, and the delivery gets retried against a receiver that
+    // already processed it and is midway through acting on it.
+    connectTimer = setTimeout(() => {
       connectTimedOut = true;
       req.destroy();
       reject(new SsrfTimeoutError(rawUrl));
+    }, CONNECT_TIMEOUT_MS);
+
+    req.on('socket', (socket) => {
+      const armResponseDeadline = (): void => {
+        if (connectTimer !== null) {
+          clearTimeout(connectTimer);
+          connectTimer = null;
+        }
+        responseTimer = setTimeout(() => {
+          responseTimedOut = true;
+          req.destroy();
+          reject(new SsrfTimeoutError(rawUrl));
+        }, RESPONSE_TIMEOUT_MS);
+      };
+
+      // An agent-pooled socket arrives already connected.
+      if (!socket.connecting) {
+        armResponseDeadline();
+        return;
+      }
+      socket.once(scheme === 'https:' ? 'secureConnect' : 'connect', armResponseDeadline);
     });
 
-    if (options.body) {
-      req.write(options.body);
+    if (requestBody !== undefined) {
+      req.write(requestBody);
     }
     req.end();
   });

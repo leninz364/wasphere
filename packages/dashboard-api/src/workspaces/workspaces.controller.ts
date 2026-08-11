@@ -27,6 +27,7 @@ import { ProxyService } from './proxy.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { SetWaServerDto } from './dto/set-wa-server.dto';
 import { UpdateBrandingDto } from './dto/update-branding.dto';
+import { UpdateChatRetentionDto } from './dto/update-chat-retention.dto';
 import { GetAuditLogsQueryDto } from './dto/get-audit-logs-query.dto';
 
 interface AuthenticatedRequest extends Request {
@@ -94,6 +95,23 @@ export class WorkspacesController {
     @Body() dto: SetWaServerDto,
   ) {
     return this.workspacesService.setWaServer(req.user.userId, id, dto);
+  }
+
+  @Patch(':id/chat-retention')
+  @RequiresPermission('workspace:write')
+  @RequireCapability('settings')
+  @ApiOperation({ summary: 'Configure automatic chat retention (archive resolved, delete archived)' })
+  @ApiParam({ name: 'id', description: 'Workspace UUID' })
+  @ApiResponse({ status: 200, description: 'Retention settings updated' })
+  @ApiResponse({ status: 400, description: 'Validation error' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Owner access required' })
+  updateChatRetention(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() dto: UpdateChatRetentionDto,
+  ) {
+    return this.workspacesService.updateChatRetention(req.user.userId, id, dto);
   }
 
   @Patch(':id/branding')

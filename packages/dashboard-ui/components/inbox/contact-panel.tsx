@@ -1,69 +1,19 @@
 "use client"
 
 import * as React from "react"
-import { X, FileText, BellOff } from "lucide-react"
+import { X, FileText, Bot, UserRound, ClipboardList, Share2, UserPlus, Archive, ArchiveRestore } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { clockTime } from "./relative-time"
-import type { Conversation, InboxMessage } from "./types"
+import { StarRating } from "@/components/star-rating"
+import { ratingColor } from "@/lib/rating"
+import { cn } from "@/lib/utils"
+import { relativeTime } from "./relative-time"
+import { agentName, ATTENTION_CLASSES, ATTENTION_LABELS } from "./attention"
+import type { AttentionStatus, Conversation, ConversationEvent, DelegationAgent, DelegationGroup, InboxMessage } from "./types"
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/)
   return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : parts[0]?.[1] ?? "")).toUpperCase()
-}
-
-function TagEditor({ tags, onChange }: { tags: string[]; onChange: (tags: string[]) => void }) {
-  const [draft, setDraft] = React.useState("")
-  const add = () => {
-    const t = draft.trim().toLowerCase()
-    if (!t || tags.includes(t) || tags.length >= 20) { setDraft(""); return }
-    onChange([...tags, t])
-    setDraft("")
-  }
-  return (
-    <div className="flex flex-col gap-2">
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {tags.map((t) => (
-            <Badge key={t} variant="secondary" className="gap-1 text-[10px]">
-              {t}
-              <button type="button" onClick={() => onChange(tags.filter((x) => x !== t))} className="opacity-60 hover:opacity-100" aria-label={`Remove ${t}`}>
-                <X className="size-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-      )}
-      <Input
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add() } }}
-        onBlur={add}
-        placeholder="Add a tag…"
-        maxLength={40}
-        className="h-7 text-xs"
-      />
-    </div>
-  )
-}
-
-function NotesEditor({ value, onSave }: { value: string; onSave: (notes: string) => void }) {
-  const [draft, setDraft] = React.useState(value)
-  React.useEffect(() => { setDraft(value) }, [value])
-  return (
-    <Textarea
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => { if (draft !== value) onSave(draft) }}
-      placeholder="Add notes about this customer…"
-      maxLength={2000}
-      rows={3}
-      className="resize-none text-xs"
-    />
-  )
 }
 
 function Section({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
@@ -78,23 +28,159 @@ function Section({ title, action, children }: { title: string; action?: React.Re
   )
 }
 
+// Human-readable line for one "Atención realizada" event.
+function eventText(e: ConversationEvent): string {
+  const who = e.actor ? agentName(e.actor) : "Bot IA"
+  const d = (e.detail ?? {}) as { from?: string; to?: string; toGroupName?: string | null; toUserName?: string | null; note?: string | null }
+  switch (e.type) {
+    case "assigned":
+      return `${who} se hizo cargo del chat`
+    case "delegated":
+      if (d.toGroupName) return `${who} delegó el chat a «${d.toGroupName}»`
+      if (d.toUserName)
+        return d.note
+          ? `${who} delegó el chat a ${d.toUserName}: «${d.note}»`
+          : `${who} delegó el chat a ${d.toUserName}`
+      return `${who} quitó la delegación`
+    case "attention_changed":
+      return `${who} marcó como ${ATTENTION_LABELS[(d.to as AttentionStatus) ?? "PENDIENTE"] ?? d.to}`
+    case "status_changed":
+      return d.to === "RESOLVED" ? `${who} resolvió la conversación` : `${who} reabrió la conversación`
+    case "reopened":
+      return "Nuevo mensaje — el chat volvió al Bot IA"
+    case "archived":
+      return `${who} archivó el chat`
+    case "unarchived":
+      return `${who} restauró el chat`
+    default:
+      return `${who}: ${e.type}`
+  }
+}
+
+// Delegate (reserve) the chat directly to one agent, with an optional message.
+// The chat goes to PENDIENTE but stays exclusive to that agent.
+function DelegateAgentControl({
+  current,
+  agents,
+  disabled,
+  onDelegate,
+}: {
+  current: Conversation["delegatedToUser"]
+  agents: DelegationAgent[]
+  disabled: boolean
+  onDelegate: (userId: string | null, note?: string) => void
+}) {
+  const [open, setOpen] = React.useState(false)
+  const [agentId, setAgentId] = React.useState("")
+  const [note, setNote] = React.useState("")
+
+  if (current) {
+    return (
+      <span className="flex w-fit items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
+        <UserPlus className="size-3" /> Reservado a {current.name ?? current.email}
+        {!disabled && (
+          <button
+            type="button"
+            onClick={() => onDelegate(null)}
+            className="opacity-60 hover:opacity-100"
+            aria-label="Quitar delegación"
+          >
+            <X className="size-3" />
+          </button>
+        )}
+      </span>
+    )
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+        className="flex w-fit items-center gap-1 text-[11px] font-medium text-primary hover:underline disabled:opacity-50"
+      >
+        <UserPlus className="size-3.5" /> Delegar a un agente…
+      </button>
+    )
+  }
+
+  const reset = () => { setOpen(false); setAgentId(""); setNote("") }
+  const submit = () => {
+    if (!agentId) return
+    onDelegate(agentId, note.trim() || undefined)
+    reset()
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-dashed p-2">
+      <div className="flex items-center gap-2">
+        <UserPlus className="size-3.5 shrink-0 text-muted-foreground" />
+        <select
+          value={agentId}
+          onChange={(e) => setAgentId(e.target.value)}
+          className="h-7 w-full rounded-md border border-input bg-transparent px-2 text-xs"
+          title="Delegar este chat a un agente"
+        >
+          <option value="">Elegir agente…</option>
+          {agents.map((a) => (
+            <option key={a.id} value={a.id}>{a.name}</option>
+          ))}
+        </select>
+      </div>
+      <Textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="Mensaje para el agente (opcional)…"
+        maxLength={500}
+        rows={2}
+        className="resize-none text-xs"
+      />
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={reset} className="text-[11px] text-muted-foreground hover:underline">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          disabled={!agentId}
+          onClick={submit}
+          className="rounded-md bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground disabled:opacity-50"
+        >
+          Delegar
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function ContactPanel({
   conversation,
   recent,
-  onTagsChange,
-  onNotesChange,
-  muted,
-  onToggleMute,
+  events = [],
+  groups = [],
+  agents = [],
+  onDelegate,
+  onDelegateAgent,
+  onRateContact,
+  myRating,
+  onArchive,
+  onUnarchive,
 }: {
   conversation: Conversation
   recent: InboxMessage[]
-  onTagsChange?: (tags: string[]) => void
-  onNotesChange?: (notes: string) => void
-  muted?: boolean
-  onToggleMute?: (muted: boolean) => void
+  events?: ConversationEvent[]
+  groups?: DelegationGroup[]
+  agents?: DelegationAgent[]
+  onDelegate?: (groupId: string | null) => void
+  onDelegateAgent?: (userId: string | null, note?: string) => void
+  onRateContact?: (rating: number) => void
+  // this agent's own rating for the contact (accumulated avg lives on the contact)
+  myRating?: number | null
+  // admin-only soft-delete: archive a SOLUCIONADO chat / restore an archived one
+  onArchive?: () => void
+  onUnarchive?: () => void
 }) {
   const c = conversation.contact
-  const visible = recent.filter((m) => m.type !== "unknown")
   const images = recent.filter((m) => (m.type === "image" || m.type === "sticker") && m.mediaUrl)
   const docs = recent.filter((m) => m.type === "document")
   const mediaCount = images.length + docs.length
@@ -112,36 +198,104 @@ export function ContactPanel({
           <div className="text-xs text-muted-foreground">+{c.phone}</div>
         </div>
         <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-medium text-primary">
-          WhatsApp contact
+          Contacto de WhatsApp
         </span>
       </div>
 
-      {/* notes */}
-      {onNotesChange && (
-        <Section title="Notes">
-          <NotesEditor value={conversation.notes ?? ""} onSave={onNotesChange} />
-        </Section>
-      )}
+      {/* attention: who + state + trail */}
+      <Section
+        title="Atención realizada"
+        action={
+          <span className={cn("rounded-full px-2 py-px text-[10px] font-medium", ATTENTION_CLASSES[conversation.attention ?? "PENDIENTE"])}>
+            {ATTENTION_LABELS[conversation.attention ?? "PENDIENTE"]}
+          </span>
+        }
+      >
+        <div className="flex items-center gap-1.5 text-xs text-foreground">
+          {conversation.assignedTo ? <UserRound className="size-3.5 text-blue-500" /> : <Bot className="size-3.5 text-violet-500" />}
+          <span className="font-medium">{agentName(conversation.assignedTo)}</span>
+          <span className="text-muted-foreground">atiende este chat</span>
+        </div>
 
-      {/* tags */}
-      <Section title="Tags">
-        {onTagsChange ? (
-          <TagEditor tags={conversation.tags} onChange={onTagsChange} />
-        ) : conversation.tags.length ? (
-          <div className="flex flex-wrap gap-1.5">
-            {conversation.tags.map((t) => (
-              <Badge key={t} variant="secondary" className="text-[10px]">{t}</Badge>
-            ))}
+        {/* delegate to a group / department / location */}
+        {onDelegate && groups.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Share2 className="size-3.5 shrink-0 text-muted-foreground" />
+            <select
+              value={conversation.delegatedGroup?.id ?? ""}
+              disabled={conversation.attention === "SOLUCIONADO"}
+              onChange={(e) => onDelegate(e.target.value || null)}
+              className="h-7 w-full rounded-md border border-input bg-transparent px-2 text-xs disabled:opacity-50"
+              title="Delegar este chat a un grupo o departamento"
+            >
+              <option value="">Sin delegar</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>Delegar a: {g.name}</option>
+              ))}
+            </select>
           </div>
+        )}
+        {conversation.delegatedGroup && (
+          <span className="flex w-fit items-center gap-1 rounded-full bg-orange-500/10 px-2 py-0.5 text-[10px] font-medium text-orange-600 dark:text-orange-400">
+            <Share2 className="size-3" /> Delegado a {conversation.delegatedGroup.name}
+          </span>
+        )}
+
+        {/* delegate (reserve) the chat directly to a specific agent + message */}
+        {onDelegateAgent && agents.length > 0 && (
+          <DelegateAgentControl
+            current={conversation.delegatedToUser}
+            agents={agents}
+            disabled={conversation.attention === "SOLUCIONADO"}
+            onDelegate={onDelegateAgent}
+          />
+        )}
+        {events.length === 0 ? (
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <ClipboardList className="size-3.5" /> Sin acciones registradas aún
+          </span>
         ) : (
-          <span className="text-xs text-muted-foreground">No tags</span>
+          <ul className="flex flex-col gap-2">
+            {events.slice(0, 10).map((e) => (
+              <li key={e.id} className="flex items-start gap-2 text-xs">
+                <span className="mt-1 size-1.5 shrink-0 rounded-full bg-primary/50" />
+                <span className="flex-1 text-foreground/80">{eventText(e)}</span>
+                <span className="shrink-0 text-[10px] text-muted-foreground" title={new Date(e.createdAt).toLocaleString()}>
+                  {relativeTime(e.createdAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
         )}
       </Section>
 
+      {/* customer rating: accumulated across all agents + this agent's own */}
+      <Section title="Calificación del cliente">
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-center gap-2">
+            <StarRating value={Math.round(conversation.contact.rating ?? 0)} readOnly size={20} color={ratingColor(conversation.contact.rating)} />
+            <span className="text-sm font-semibold" style={conversation.contact.rating ? { color: ratingColor(conversation.contact.rating) } : undefined}>
+              {conversation.contact.rating ? conversation.contact.rating.toFixed(1) : "—"}
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              {conversation.contact.ratingCount > 0
+                ? `${conversation.contact.ratingCount} calificaci${conversation.contact.ratingCount === 1 ? "ón" : "ones"}`
+                : "Sin calificaciones"}
+            </span>
+          </div>
+          {onRateContact && (
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-muted-foreground">Tu calificación:</span>
+              <StarRating value={myRating ?? 0} onChange={onRateContact} size={18} />
+            </div>
+          )}
+        </div>
+      </Section>
+
       {/* media & docs */}
-      <Section title="Media & docs" action={<span className="text-[11px] text-muted-foreground">{mediaCount}</span>}>
+      <Section title="Multimedia y documentos" action={<span className="text-[11px] text-muted-foreground">{mediaCount}</span>}>
         {mediaCount === 0 ? (
-          <span className="text-xs text-muted-foreground">No media yet</span>
+          <span className="text-xs text-muted-foreground">Sin multimedia aún</span>
         ) : (
           <div className="flex flex-col gap-2">
             {images.length > 0 && (
@@ -157,7 +311,7 @@ export function ContactPanel({
               return (
                 <div key={m.id} className="flex items-center gap-2 text-xs">
                   <FileText className="size-3.5 shrink-0 text-muted-foreground" />
-                  <span className="truncate">{(p.fileName as string) || m.body || "Document"}</span>
+                  <span className="truncate">{(p.fileName as string) || m.body || "Documento"}</span>
                 </div>
               )
             })}
@@ -165,37 +319,35 @@ export function ContactPanel({
         )}
       </Section>
 
-      {/* mute */}
-      {onToggleMute && (
-        <div className="flex items-center justify-between rounded-xl border bg-card p-3 shadow-sm">
-          <span className="flex items-center gap-2 text-sm text-foreground">
-            <BellOff className="size-4 text-muted-foreground" /> Mute notifications
-          </span>
-          <Switch checked={!!muted} onCheckedChange={(v) => onToggleMute(!!v)} />
-        </div>
+      {/* admin-only: archive (hide) a solved chat, or restore an archived one */}
+      {(onArchive || onUnarchive) && (
+        <Section title="Administración">
+          {onArchive && (
+            <button
+              type="button"
+              onClick={onArchive}
+              className="flex w-full items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            >
+              <Archive className="size-3.5" /> Archivar chat
+            </button>
+          )}
+          {onUnarchive && (
+            <button
+              type="button"
+              onClick={onUnarchive}
+              className="flex w-full items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/10"
+            >
+              <ArchiveRestore className="size-3.5" /> Restaurar a la bandeja
+            </button>
+          )}
+          <p className="text-[10px] leading-snug text-muted-foreground">
+            {onArchive
+              ? "Oculta el chat de la bandeja sin borrar datos. Reaparece si el cliente vuelve a escribir."
+              : "Devuelve el chat a la bandeja activa."}
+          </p>
+        </Section>
       )}
 
-      {/* recent activity */}
-      <Section title="Recent activity">
-        {visible.length === 0 ? (
-          <span className="text-xs text-muted-foreground">No messages yet</span>
-        ) : (
-          <ul className="flex flex-col gap-2.5">
-            {visible.slice(0, 8).map((m) => (
-              <li key={m.id} className="flex items-start gap-2 text-xs">
-                <span className="mt-0.5 shrink-0 text-muted-foreground">{m.fromMe ? "↗" : "↘"}</span>
-                <span className="line-clamp-2 flex-1 text-foreground/80">{m.body ?? `[${m.type}]`}</span>
-                <span className="shrink-0 text-[10px] text-muted-foreground">{clockTime(m.waTimestamp)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
-
-      <p className="px-1 text-[11px] leading-relaxed text-muted-foreground">
-        A unified <span className="font-medium">Customer view</span> — all conversations for this number across
-        your sessions — is coming in a future release.
-      </p>
     </div>
   )
 }

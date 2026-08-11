@@ -20,23 +20,23 @@ import { cn } from "@/lib/utils"
 import { type MessageType } from "@/lib/message-types"
 
 const BASIC_TYPES: { type: MessageType; icon: React.ElementType; label: string }[] = [
-  { type: "text", icon: AlignLeft, label: "Text" },
-  { type: "image", icon: Image, label: "Image" },
+  { type: "text", icon: AlignLeft, label: "Texto" },
+  { type: "image", icon: Image, label: "Imagen" },
   { type: "video", icon: Video, label: "Video" },
   { type: "audio", icon: Music, label: "Audio" },
-  { type: "document", icon: FileText, label: "Document" },
+  { type: "document", icon: FileText, label: "Documento" },
   { type: "sticker", icon: Smile, label: "Sticker" },
   { type: "gif", icon: Film, label: "GIF" },
 ]
 
 const INTERACTIVE_TYPES: { type: MessageType; icon: React.ElementType; label: string }[] = [
-  { type: "location", icon: MapPin, label: "Location" },
-  { type: "contact", icon: UserRound, label: "Contact" },
-  { type: "buttons", icon: LayoutList, label: "Buttons" },
-  { type: "list", icon: List, label: "List" },
-  { type: "poll", icon: BarChart2, label: "Poll" },
-  { type: "reaction", icon: Heart, label: "Reaction" },
-  { type: "view-once", icon: Eye, label: "View Once" },
+  { type: "location", icon: MapPin, label: "Ubicación" },
+  { type: "contact", icon: UserRound, label: "Contacto" },
+  { type: "buttons", icon: LayoutList, label: "Botones" },
+  { type: "list", icon: List, label: "Lista" },
+  { type: "poll", icon: BarChart2, label: "Encuesta" },
+  { type: "reaction", icon: Heart, label: "Reacción" },
+  { type: "view-once", icon: Eye, label: "Ver una vez" },
 ]
 
 interface MessageTypeSelectorProps {
@@ -91,7 +91,7 @@ export function MessageTypeSelector({ value, onChange }: MessageTypeSelectorProp
       </div>
       <div className="flex items-center gap-2">
         <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 shrink-0">
-          Interactive
+          Interactivos
         </span>
         <div className="h-px flex-1 bg-border" />
       </div>

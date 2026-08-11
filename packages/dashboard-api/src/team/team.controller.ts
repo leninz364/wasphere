@@ -6,11 +6,62 @@ import { CombinedAuthGuard } from '../auth/combined-auth.guard';
 import { CAPABILITIES } from '../lib/capabilities';
 import { TeamService } from './team.service';
 
-// `role` is either the literal 'ADMIN' tier or a custom-role id (uuid).
-class RoleRefDto {
+// Member update: a role ref ('ADMIN' | custom-role uuid) and/or profile fields.
+class UpdateMemberDto {
+  @IsOptional()
   @IsString()
   @MinLength(1)
-  role: string;
+  role?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  lastName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  cedula?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  cargo?: string;
+}
+
+class CreateGroupDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(60)
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  description?: string;
+}
+
+class UpdateGroupDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(60)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  description?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  memberIds?: string[];
 }
 
 // Invite creation: a role ref plus an optional email to send the invite link to.
@@ -70,8 +121,8 @@ export class TeamController {
   }
 
   @Patch('members/:userId')
-  assignRole(@Req() req: AuthedRequest, @Param('workspaceId') ws: string, @Param('userId') userId: string, @Body() dto: RoleRefDto) {
-    return this.team.assignRole(ws, req.user.userId, userId, dto.role);
+  updateMember(@Req() req: AuthedRequest, @Param('workspaceId') ws: string, @Param('userId') userId: string, @Body() dto: UpdateMemberDto) {
+    return this.team.updateMember(ws, req.user.userId, userId, dto);
   }
 
   @Delete('members/:userId')
@@ -99,6 +150,28 @@ export class TeamController {
   @Delete('roles/:roleId')
   deleteRole(@Req() req: AuthedRequest, @Param('workspaceId') ws: string, @Param('roleId') roleId: string) {
     return this.team.deleteRole(ws, req.user.userId, roleId);
+  }
+
+  // ── Agent groups ─────────────────────────────────────────────────────────
+
+  @Get('groups')
+  listGroups(@Req() req: AuthedRequest, @Param('workspaceId') ws: string) {
+    return this.team.listGroups(ws, req.user.userId);
+  }
+
+  @Post('groups')
+  createGroup(@Req() req: AuthedRequest, @Param('workspaceId') ws: string, @Body() dto: CreateGroupDto) {
+    return this.team.createGroup(ws, req.user.userId, dto.name, dto.description);
+  }
+
+  @Patch('groups/:groupId')
+  updateGroup(@Req() req: AuthedRequest, @Param('workspaceId') ws: string, @Param('groupId') groupId: string, @Body() dto: UpdateGroupDto) {
+    return this.team.updateGroup(ws, req.user.userId, groupId, dto);
+  }
+
+  @Delete('groups/:groupId')
+  deleteGroup(@Req() req: AuthedRequest, @Param('workspaceId') ws: string, @Param('groupId') groupId: string) {
+    return this.team.deleteGroup(ws, req.user.userId, groupId);
   }
 
   // ── Invites ──────────────────────────────────────────────────────────────

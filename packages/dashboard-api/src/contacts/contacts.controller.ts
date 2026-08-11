@@ -25,6 +25,10 @@ class UpdateContactDto {
   @IsOptional() @IsString() @MaxLength(2000) notes?: string;
 }
 
+class RateContactDto {
+  @IsInt() @Min(0) @Max(5) rating: number;
+}
+
 class BulkContactsDto {
   @IsArray() @IsString({ each: true }) @ArrayMaxSize(500) ids: string[];
   @IsIn(['addTag', 'removeTag', 'delete']) action: 'addTag' | 'removeTag' | 'delete';
@@ -98,6 +102,18 @@ export class ContactsController {
   @ApiOperation({ summary: 'Update a contact (saved name, tags, notes)' })
   update(@Req() req: AuthedRequest, @Param('workspaceId') ws: string, @Param('contactId') id: string, @Body() dto: UpdateContactDto) {
     return this.contacts.update(req.user.userId, ws, id, dto);
+  }
+
+  @Get(':contactId/rating')
+  @ApiOperation({ summary: 'Accumulated rating + this agent’s own rating for a contact' })
+  getRating(@Req() req: AuthedRequest, @Param('workspaceId') ws: string, @Param('contactId') id: string) {
+    return this.contacts.getRating(req.user.userId, ws, id);
+  }
+
+  @Patch(':contactId/rating')
+  @ApiOperation({ summary: 'Set this agent’s 1–5 rating (0 clears it); returns the new accumulated rating' })
+  setRating(@Req() req: AuthedRequest, @Param('workspaceId') ws: string, @Param('contactId') id: string, @Body() dto: RateContactDto) {
+    return this.contacts.setRating(req.user.userId, ws, id, dto.rating);
   }
 
   @Delete(':contactId')

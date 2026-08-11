@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { clearAuthCookies } from "@/lib/auth-cookies";
 
 const API_BASE = process.env.DASHBOARD_API_URL ?? "http://localhost:3000";
 
@@ -16,8 +17,7 @@ export async function POST() {
     });
   }
 
-  cookieStore.set("wa_access", "", { maxAge: 0, path: "/" });
-  cookieStore.set("wa_refresh", "", { maxAge: 0, path: "/" });
+  clearAuthCookies(cookieStore);
 
   return new Response(null, { status: 200 });
 }

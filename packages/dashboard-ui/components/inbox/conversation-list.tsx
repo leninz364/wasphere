@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/ui/empty-state"
 import { cn } from "@/lib/utils"
 import { relativeTime } from "./relative-time"
+import { agentName, ATTENTION_CLASSES, ATTENTION_LABELS } from "./attention"
 import type { Conversation, ConversationStatus } from "./types"
 
 function initials(name: string): string {
@@ -51,7 +52,7 @@ export function ConversationList({
           <Input
             value={search}
             onChange={(e) => onSearch(e.target.value)}
-            placeholder="Search name, phone, message…"
+            placeholder="Buscar nombre, teléfono, mensaje…"
             className="pl-8"
           />
         </div>
@@ -63,11 +64,11 @@ export function ConversationList({
             <SelectTrigger className="h-8 w-full text-xs">
               <span className="flex items-center gap-1.5 truncate">
                 <Smartphone className="size-3.5 shrink-0 text-muted-foreground" />
-                <span className="truncate">{sessionFilter || "All sessions"}</span>
+                <span className="truncate">{sessionFilter || "Todas las sesiones"}</span>
               </span>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">All sessions</SelectItem>
+              <SelectItem value="__all__">Todas las sesiones</SelectItem>
               {sessions.map((s) => (
                 <SelectItem key={s} value={s}>{s}</SelectItem>
               ))}
@@ -76,8 +77,8 @@ export function ConversationList({
         )}
         <Tabs value={statusTab} onValueChange={(v) => onStatusTab(v as ConversationStatus)}>
           <TabsList className="w-full">
-            <TabsTrigger value="OPEN" className="flex-1">Open</TabsTrigger>
-            <TabsTrigger value="RESOLVED" className="flex-1">Resolved</TabsTrigger>
+            <TabsTrigger value="OPEN" className="flex-1">Abiertas</TabsTrigger>
+            <TabsTrigger value="RESOLVED" className="flex-1">Resueltas</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -98,11 +99,11 @@ export function ConversationList({
         ) : conversations.length === 0 ? (
           <div className="p-6">
             <EmptyState
-              message={statusTab === "OPEN" ? "No conversations yet" : "Nothing resolved"}
+              message={statusTab === "OPEN" ? "Aún no hay conversaciones" : "Nada resuelto"}
               description={
                 statusTab === "OPEN"
-                  ? "Incoming WhatsApp messages will appear here in real time."
-                  : "Resolved conversations will show up here."
+                  ? "Los mensajes entrantes de WhatsApp aparecerán aquí en tiempo real."
+                  : "Las conversaciones resueltas aparecerán aquí."
               }
             />
           </div>
@@ -142,6 +143,24 @@ export function ConversationList({
                             {c.unreadCount}
                           </Badge>
                         )}
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-1.5">
+                        <span className={cn("rounded-full px-1.5 py-px text-[9px] font-medium", ATTENTION_CLASSES[c.attention ?? "PENDIENTE"])}>
+                          {ATTENTION_LABELS[c.attention ?? "PENDIENTE"]}
+                        </span>
+                        {c.delegatedGroup && (
+                          <span className="max-w-[45%] truncate rounded-full bg-orange-500/10 px-1.5 py-px text-[9px] font-medium text-orange-600 dark:text-orange-400" title={`Delegado a ${c.delegatedGroup.name}`}>
+                            ➜ {c.delegatedGroup.name}
+                          </span>
+                        )}
+                        {c.delegatedToUser && (
+                          <span className="max-w-[45%] truncate rounded-full bg-blue-500/10 px-1.5 py-px text-[9px] font-medium text-blue-600 dark:text-blue-400" title={`Reservado a ${c.delegatedToUser.name ?? c.delegatedToUser.email}`}>
+                            ➜ {c.delegatedToUser.name ?? c.delegatedToUser.email}
+                          </span>
+                        )}
+                        <span className="truncate text-[10px] text-muted-foreground">
+                          {c.assignedTo ? `👤 ${agentName(c.assignedTo)}` : "🤖 Bot IA"}
+                        </span>
                       </div>
                     </div>
                   </button>

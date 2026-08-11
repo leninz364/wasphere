@@ -1,0 +1,129 @@
+{
+  "name": "WaSphere - WhatsApp inbound",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## WaSphere / BritelBot\nEl nodo Webhook ya viene con **Header Auth** activado. Solo falta:\n\n1. Abre el nodo Webhook > Credential for Header Auth > **Create new**.\n2. Name: `Authorization` — Value: `Bearer TU_TOKEN_COMPARTIDO`.\n3. **Activa el workflow** (toggle arriba a la derecha).\n4. Copia la **Production URL** (`/webhook/...`) en BritelBot > Conexiones > n8n.\n\n⚠️ No uses la URL `/webhook-test/`: solo funciona mientras pulsas *Execute workflow* y expira enseguida.\n\nBritelBot enviará únicamente eventos `message.received`.",
+        "height": 260,
+        "width": 430
+      },
+      "id": "a8b4f829-3b18-4b6c-bb34-83173f4b8581",
+      "name": "Instrucciones",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wasphere-whatsapp",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "BritelBot - Header Auth"
+        }
+      },
+      "id": "91eb84f7-e218-41d2-a407-1ab81ab232e3",
+      "name": "WaSphere Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -420,
+        100
+      ],
+      "webhookId": "wasphere-whatsapp"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8ebd39d4-c77d-45df-94dc-e54780ea1b62",
+              "name": "event",
+              "value": "={{ $json.body.event }}",
+              "type": "string"
+            },
+            {
+              "id": "72258a2d-beb7-4090-8fb1-4d4798719485",
+              "name": "sessionId",
+              "value": "={{ $json.body.sessionId }}",
+              "type": "string"
+            },
+            {
+              "id": "54e4d521-6398-4c44-b779-30b30824cb1a",
+              "name": "from",
+              "value": "={{ $json.body.data.from }}",
+              "type": "string"
+            },
+            {
+              "id": "c3e18a2a-a028-4d4e-ae5d-13f57e259121",
+              "name": "messageId",
+              "value": "={{ $json.body.data.messageId }}",
+              "type": "string"
+            },
+            {
+              "id": "616272d5-0bb0-4832-b8f3-bb206537f3a3",
+              "name": "payload",
+              "value": "={{ $json.body.data }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "00c73b90-8298-48f2-a3ea-8392d5fb5558",
+      "name": "Datos de WhatsApp",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -140,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Responder por WhatsApp\nAñade un nodo HTTP Request después de tu agente IA:\n\n- Method: `POST`\n- URL: `BRITELBOT_API_URL/workspaces/WORKSPACE_ID/conversations`\n- Header: `Authorization: Bearer wsk_...`\n- JSON body:\n```json\n{\n  \"sessionId\": \"MIWATSSLENIN\",\n  \"to\": \"NUMERO\",\n  \"text\": \"MENSAJE\"\n}\n```\n\nBritelBot muestra estos valores exactos al completar la conexión.",
+        "height": 330,
+        "width": 500
+      },
+      "id": "26107398-f3fb-46a5-9cbd-ae6d04486b5b",
+      "name": "Cómo responder",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        100,
+        -260
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "WaSphere Webhook": {
+      "main": [
+        [
+          {
+            "node": "Datos de WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e951649b-77fe-4f03-b82e-34b989d65b32",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

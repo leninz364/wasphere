@@ -26,8 +26,8 @@ export function ContactForm({ onSubmit, submitting }: FormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const errs: Record<string, string> = {}
-    if (!displayName.trim()) errs.displayName = "Display name is required."
-    if (!phoneNumber.trim()) errs.phoneNumber = "Phone number is required."
+    if (!displayName.trim()) errs.displayName = "El nombre para mostrar es obligatorio."
+    if (!phoneNumber.trim()) errs.phoneNumber = "El número de teléfono es obligatorio."
     if (Object.keys(errs).length > 0) {
       setErrors(errs)
       return
@@ -42,16 +42,16 @@ export function ContactForm({ onSubmit, submitting }: FormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex items-center justify-between pb-1">
-        <span className="text-xs text-muted-foreground">Fill in the fields below</span>
+        <span className="text-xs text-muted-foreground">Completa los campos a continuación</span>
         <Button type="button" size="xs" variant="outline" onClick={fillSample}>
-          Fill Sample
+          Rellenar ejemplo
         </Button>
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="contact-name">Display Name</Label>
+        <Label htmlFor="contact-name">Nombre para mostrar</Label>
         <Input
           id="contact-name"
-          placeholder="John Smith"
+          placeholder="Juan Pérez"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
         />
@@ -61,7 +61,7 @@ export function ContactForm({ onSubmit, submitting }: FormProps) {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="contact-phone">Phone Number</Label>
+        <Label htmlFor="contact-phone">Número de teléfono</Label>
         <Input
           id="contact-phone"
           placeholder="+1 415 555 2671"
@@ -72,12 +72,12 @@ export function ContactForm({ onSubmit, submitting }: FormProps) {
           <p className="text-xs text-destructive">{errors.phoneNumber}</p>
         )}
         <p className="text-xs text-muted-foreground">
-          Server handles vCard encoding automatically
+          El servidor codifica el vCard automáticamente
         </p>
       </div>
 
       <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Sending…" : "Send Message"}
+        {submitting ? "Enviando…" : "Enviar mensaje"}
       </Button>
     </form>
   )

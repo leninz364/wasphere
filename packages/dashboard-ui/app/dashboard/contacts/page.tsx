@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { StarRating } from "@/components/star-rating"
+import { ratingColor } from "@/lib/rating"
 
 type Contact = {
   id: string
@@ -20,6 +22,9 @@ type Contact = {
   avatarUrl: string | null
   tags: string[]
   notes: string | null
+  // accumulated (average) rating across agents + how many agents rated
+  rating: number | null
+  ratingCount: number
 }
 
 function initials(name: string): string {
@@ -78,7 +83,7 @@ function TagEditor({ tags, onChange }: { tags: string[]; onChange: (next: string
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add() } else if (e.key === "Backspace" && !draft && tags.length) onChange(tags.slice(0, -1)) }}
         onBlur={add}
-        placeholder={tags.length ? "" : "Add tag + Enter"}
+        placeholder={tags.length ? "" : "Agregar etiqueta + Enter"}
         className="min-w-[100px] flex-1 bg-transparent text-sm outline-none"
       />
     </div>
@@ -96,7 +101,9 @@ export default function ContactsPage() {
 
   // Edit dialog
   const [editing, setEditing] = React.useState<Contact | null>(null)
-  const [draft, setDraft] = React.useState<{ savedName: string; tags: string[]; notes: string }>({ savedName: "", tags: [], notes: "" })
+  // draft.rating = THIS agent's own contribution; editAgg = accumulated average.
+  const [draft, setDraft] = React.useState<{ savedName: string; tags: string[]; notes: string; rating: number }>({ savedName: "", tags: [], notes: "", rating: 0 })
+  const [editAgg, setEditAgg] = React.useState<{ avg: number | null; count: number }>({ avg: null, count: 0 })
   const [saving, setSaving] = React.useState(false)
 
   // Add dialog
@@ -125,7 +132,7 @@ export default function ContactsPage() {
       setContacts(Array.isArray(list?.items) ? list.items : [])
       setAllTags(Array.isArray(tags) ? tags : [])
     } catch {
-      toast.error("Could not load contacts.")
+      toast.error("No se pudieron cargar los contactos.")
     } finally {
       loadedOnce.current = true
       setLoading(false)
@@ -140,7 +147,38 @@ export default function ContactsPage() {
   const refresh = () => void load(search, activeTag)
 
   // ── Edit ───────────────────────────────────────────────────────────────
-  const openEdit = (c: Contact) => { setEditing(c); setDraft({ savedName: c.savedName ?? "", tags: c.tags ?? [], notes: c.notes ?? "" }) }
+  const openEdit = (c: Contact) => {
+    setEditing(c)
+    setDraft({ savedName: c.savedName ?? "", tags: c.tags ?? [], notes: c.notes ?? "", rating: 0 })
+    setEditAgg({ avg: c.rating ?? null, count: c.ratingCount ?? 0 })
+    // Load THIS agent's own rating (and the fresh accumulated average).
+    fetch(`/api/contacts/${c.id}/rating`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { avg: number | null; count: number; myRating: number | null } | null) => {
+        if (!d) return
+        setDraft((prev) => ({ ...prev, rating: d.myRating ?? 0 }))
+        setEditAgg({ avg: d.avg, count: d.count })
+      })
+      .catch(() => { /* keep */ })
+  }
+
+  // Set this agent's rating immediately (decoupled from Guardar) and reflect the
+  // new accumulated average in the list.
+  const saveMyRating = async (contactId: string, rating: number) => {
+    setDraft((d) => ({ ...d, rating }))
+    const res = await fetch(`/api/contacts/${contactId}/rating`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rating }),
+    }).catch(() => null)
+    if (!res?.ok) { toast.error("No se pudo guardar la calificación."); return }
+    const d = (await res.json().catch(() => null)) as { avg: number | null; count: number; myRating: number | null } | null
+    if (d) {
+      setEditAgg({ avg: d.avg, count: d.count })
+      setDraft((prev) => ({ ...prev, rating: d.myRating ?? 0 }))
+      setContacts((prev) => prev.map((c) => (c.id === contactId ? { ...c, rating: d.avg, ratingCount: d.count } : c)))
+    }
+  }
+
   const saveEdit = async () => {
     if (!editing) return
     setSaving(true)
@@ -150,17 +188,17 @@ export default function ContactsPage() {
         body: JSON.stringify({ savedName: draft.savedName.trim(), tags: draft.tags, notes: draft.notes.trim() }),
       })
       const updated = await res.json()
-      if (!res.ok) { toast.error(updated?.message ?? "Could not save."); return }
+      if (!res.ok) { toast.error(updated?.message ?? "No se pudo guardar."); return }
       setContacts((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
-      toast.success("Contact saved"); setEditing(null)
+      toast.success("Contacto guardado"); setEditing(null)
       void load(search, activeTag) // refresh tag filter
-    } catch { toast.error("Could not reach the server.") }
+    } catch { toast.error("No se pudo conectar con el servidor.") }
     finally { setSaving(false) }
   }
 
   // ── Add ────────────────────────────────────────────────────────────────
   const addContact = async () => {
-    if (!addDraft.phone.replace(/[^0-9]/g, "")) { toast.error("Enter a phone number with country code."); return }
+    if (!addDraft.phone.replace(/[^0-9]/g, "")) { toast.error("Ingresa un número de teléfono con código de país."); return }
     setAddBusy(true)
     try {
       const res = await fetch(`/api/contacts`, {
@@ -168,19 +206,19 @@ export default function ContactsPage() {
         body: JSON.stringify({ phone: addDraft.phone, savedName: addDraft.savedName.trim() || undefined, tags: addDraft.tags }),
       })
       const data = await res.json()
-      if (!res.ok) { toast.error(data?.message ?? "Could not add."); return }
-      toast.success("Contact added"); setAdding(false); setAddDraft({ phone: "", savedName: "", tags: [] })
+      if (!res.ok) { toast.error(data?.message ?? "No se pudo agregar."); return }
+      toast.success("Contacto agregado"); setAdding(false); setAddDraft({ phone: "", savedName: "", tags: [] })
       refresh()
-    } catch { toast.error("Could not reach the server.") }
+    } catch { toast.error("No se pudo conectar con el servidor.") }
     finally { setAddBusy(false) }
   }
 
   // ── Delete ─────────────────────────────────────────────────────────────
   const deleteContact = async (c: Contact) => {
-    if (!confirm(`Delete ${c.name} from the contact book?`)) return
+    if (!confirm(`¿Eliminar a ${c.name} de la libreta de contactos?`)) return
     const res = await fetch(`/api/contacts/${c.id}`, { method: "DELETE" })
-    if (!res.ok) { const d = await res.json().catch(() => ({})); toast.error(d?.message ?? "Could not delete"); return }
-    toast.success("Contact deleted"); refresh()
+    if (!res.ok) { const d = await res.json().catch(() => ({})); toast.error(d?.message ?? "No se pudo eliminar"); return }
+    toast.success("Contacto eliminado"); refresh()
   }
 
   // ── Selection / bulk ───────────────────────────────────────────────────
@@ -191,14 +229,14 @@ export default function ContactsPage() {
   const runBulk = async (action: "addTag" | "removeTag" | "delete", tag?: string) => {
     const ids = [...selected]
     if (!ids.length) return
-    if (action === "delete" && !confirm(`Delete ${ids.length} contact${ids.length === 1 ? "" : "s"}?`)) return
+    if (action === "delete" && !confirm(`¿Eliminar ${ids.length} contacto${ids.length === 1 ? "" : "s"}?`)) return
     const res = await fetch(`/api/contacts/bulk`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids, action, tag }),
     })
     const data = await res.json()
-    if (!res.ok) { toast.error(data?.message ?? "Bulk action failed"); return }
-    toast.success(`Updated ${data.affected ?? ids.length} contact${(data.affected ?? ids.length) === 1 ? "" : "s"}`)
+    if (!res.ok) { toast.error(data?.message ?? "La acción masiva falló"); return }
+    toast.success(`Se actualizaron ${data.affected ?? ids.length} contacto${(data.affected ?? ids.length) === 1 ? "" : "s"}`)
     setSelected(new Set()); setBulkTag(null); refresh()
   }
 
@@ -207,20 +245,20 @@ export default function ContactsPage() {
     const body = onlySelected ? { ids: [...selected] } : {}
     const res = await fetch(`/api/contacts/export`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
     const data = await res.json()
-    if (!res.ok) { toast.error(data?.message ?? "Export failed"); return }
+    if (!res.ok) { toast.error(data?.message ?? "La exportación falló"); return }
     const blob = new Blob([data.csv ?? ""], { type: "text/csv;charset=utf-8" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url; a.download = data.filename ?? "contacts.csv"; a.click()
     URL.revokeObjectURL(url)
-    toast.success(`Exported ${data.count ?? 0} contact${(data.count ?? 0) === 1 ? "" : "s"}`)
+    toast.success(`Se exportaron ${data.count ?? 0} contacto${(data.count ?? 0) === 1 ? "" : "s"}`)
   }
 
   // ── Import ─────────────────────────────────────────────────────────────
   const onFile = (file: File) => {
     // Guard the browser: a huge CSV parsed in-page would freeze/OOM the tab.
     if (file.size > 15 * 1024 * 1024) {
-      toast.error("That file is too large (max 15 MB). Split it into smaller files.")
+      toast.error("Ese archivo es demasiado grande (máx. 15 MB). Divídelo en archivos más pequeños.")
       return
     }
     const MAX_ROWS = 50000
@@ -234,7 +272,7 @@ export default function ContactsPage() {
         let truncated = false
         if (data.length > MAX_ROWS) { data = data.slice(0, MAX_ROWS); truncated = true }
         const cols = pickColumns(fields, data)
-        if (!cols.phone) { toast.error("Couldn't find a phone-number column in that CSV."); return }
+        if (!cols.phone) { toast.error("No se encontró una columna de teléfono en ese CSV."); return }
         const rows: ImportRow[] = []
         let invalid = 0
         for (const r of data) {
@@ -247,11 +285,11 @@ export default function ContactsPage() {
             notes: cols.notes ? String(r[cols.notes] ?? "").trim().slice(0, 2000) || undefined : undefined,
           })
         }
-        if (!rows.length) { toast.error("No valid contacts found in that file."); return }
-        if (truncated) toast.message(`Large file — only the first ${MAX_ROWS.toLocaleString()} rows were loaded.`)
+        if (!rows.length) { toast.error("No se encontraron contactos válidos en ese archivo."); return }
+        if (truncated) toast.message(`Archivo grande — solo se cargaron las primeras ${MAX_ROWS.toLocaleString()} filas.`)
         setImportPreview({ fileName: file.name, rows, invalid })
       },
-      error: () => toast.error("Could not read that file."),
+      error: () => toast.error("No se pudo leer ese archivo."),
     })
   }
 
@@ -267,12 +305,12 @@ export default function ContactsPage() {
           body: JSON.stringify({ contacts: importPreview.rows.slice(i, i + CHUNK) }),
         })
         const data = await res.json()
-        if (!res.ok) { toast.error(data?.message ?? "Import failed"); return }
+        if (!res.ok) { toast.error(data?.message ?? "La importación falló"); return }
         imported += data.imported ?? 0; skipped += data.skipped ?? 0; invalid += data.invalid ?? 0
       }
-      toast.success(`Imported ${imported} · ${skipped} already existed · ${invalid} invalid`)
+      toast.success(`Importados: ${imported} · ${skipped} ya existían · ${invalid} inválidos`)
       setImportPreview(null); refresh()
-    } catch { toast.error("Could not reach the server.") }
+    } catch { toast.error("No se pudo conectar con el servidor.") }
     finally { setImporting(false) }
   }
 
@@ -281,14 +319,14 @@ export default function ContactsPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Contacts</h1>
+        <h1 className="text-2xl font-semibold">Contactos</h1>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">{contacts.length} contact{contacts.length === 1 ? "" : "s"}</span>
+          <span className="text-sm text-muted-foreground">{contacts.length} contacto{contacts.length === 1 ? "" : "s"}</span>
           <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = "" }} />
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => fileInputRef.current?.click()}><Upload className="size-4" /> Import</Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => void exportCsv(false)}><Download className="size-4" /> Export</Button>
-          <Button size="sm" className="gap-1.5" onClick={() => setAdding(true)}><Plus className="size-4" /> Add contact</Button>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => fileInputRef.current?.click()}><Upload className="size-4" /> Importar</Button>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => void exportCsv(false)}><Download className="size-4" /> Exportar</Button>
+          <Button size="sm" className="gap-1.5" onClick={() => setAdding(true)}><Plus className="size-4" /> Agregar contacto</Button>
         </div>
       </div>
 
@@ -296,11 +334,11 @@ export default function ContactsPage() {
       <div className="flex flex-col gap-2">
         <div className="relative max-w-sm">
           <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-          <Input className="pl-8" placeholder="Search name or phone…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input className="pl-8" placeholder="Buscar nombre o teléfono…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         {allTags.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
-            <button onClick={() => setActiveTag(null)} className={["rounded-full border px-2.5 py-0.5 text-xs", activeTag === null ? "border-primary bg-primary/10 text-primary" : "border-input text-muted-foreground hover:bg-muted"].join(" ")}>All</button>
+            <button onClick={() => setActiveTag(null)} className={["rounded-full border px-2.5 py-0.5 text-xs", activeTag === null ? "border-primary bg-primary/10 text-primary" : "border-input text-muted-foreground hover:bg-muted"].join(" ")}>Todos</button>
             {allTags.map((t) => (
               <button key={t} onClick={() => setActiveTag(activeTag === t ? null : t)} className={["flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs", activeTag === t ? "border-primary bg-primary/10 text-primary" : "border-input text-muted-foreground hover:bg-muted"].join(" ")}>
                 <TagIcon className="size-3" />{t}
@@ -313,27 +351,27 @@ export default function ContactsPage() {
       {/* Bulk bar */}
       {selCount > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          <span className="font-medium">{selCount} selected</span>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setBulkTag({ mode: "addTag", tag: "" })}><TagIcon className="size-3.5" /> Add tag</Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setBulkTag({ mode: "removeTag", tag: "" })}>Remove tag</Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => void exportCsv(true)}><Download className="size-3.5" /> Export</Button>
-          <Button variant="ghost" size="sm" className="gap-1.5 text-destructive" onClick={() => void runBulk("delete")}><Trash2 className="size-3.5" /> Delete</Button>
-          <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setSelected(new Set())}>Clear</Button>
+          <span className="font-medium">{selCount} seleccionados</span>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setBulkTag({ mode: "addTag", tag: "" })}><TagIcon className="size-3.5" /> Agregar etiqueta</Button>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setBulkTag({ mode: "removeTag", tag: "" })}>Quitar etiqueta</Button>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => void exportCsv(true)}><Download className="size-3.5" /> Exportar</Button>
+          <Button variant="ghost" size="sm" className="gap-1.5 text-destructive" onClick={() => void runBulk("delete")}><Trash2 className="size-3.5" /> Eliminar</Button>
+          <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setSelected(new Set())}>Limpiar</Button>
         </div>
       )}
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">Cargando…</p>
       ) : contacts.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border bg-card py-16 text-center">
           <div className="flex size-16 items-center justify-center rounded-full bg-primary/5"><UsersIcon className="size-8 text-primary/40" /></div>
-          <p className="text-sm text-muted-foreground">{search || activeTag ? "No contacts match." : "No contacts yet. Add one, or they appear as people message you."}</p>
+          <p className="text-sm text-muted-foreground">{search || activeTag ? "Ningún contacto coincide." : "Aún no hay contactos. Agrega uno, o aparecerán cuando te escriban."}</p>
         </div>
       ) : (
         <div className="rounded-xl border bg-card">
           <div className="flex items-center gap-3 border-b px-4 py-2 text-xs text-muted-foreground">
             <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} className="size-4 accent-primary" />
-            <span>Select all</span>
+            <span>Seleccionar todos</span>
           </div>
           <div className="divide-y">
             {contacts.map((c) => (
@@ -347,6 +385,12 @@ export default function ContactsPage() {
                   <span className="truncate text-sm font-medium">{c.name}</span>
                   <span className="truncate text-xs text-muted-foreground tabular-nums">{c.phone}</span>
                 </div>
+                {c.rating ? (
+                  <div className="ml-1 hidden shrink-0 items-center gap-1 sm:flex" title={`${c.rating.toFixed(1)} · ${c.ratingCount} calificaci${c.ratingCount === 1 ? "ón" : "ones"}`}>
+                    <StarRating value={Math.round(c.rating)} readOnly size={14} color={ratingColor(c.rating)} />
+                    <span className="text-[11px] font-semibold tabular-nums" style={{ color: ratingColor(c.rating) }}>{c.rating.toFixed(1)}</span>
+                  </div>
+                ) : null}
                 {c.tags.length > 0 && (
                   <div className="ml-1 hidden flex-wrap gap-1 sm:flex">
                     {c.tags.slice(0, 3).map((t) => <span key={t} className="rounded-full bg-primary/8 px-1.5 py-0.5 text-[10px] text-primary">{t}</span>)}
@@ -354,8 +398,8 @@ export default function ContactsPage() {
                   </div>
                 )}
                 <div className="ml-auto flex items-center">
-                  <Button variant="ghost" size="icon" className="size-8" onClick={() => openEdit(c)} title="Edit"><Pencil className="size-4" /></Button>
-                  <Button variant="ghost" size="icon" className="size-8 text-destructive" onClick={() => void deleteContact(c)} title="Delete"><Trash2 className="size-4" /></Button>
+                  <Button variant="ghost" size="icon" className="size-8" onClick={() => openEdit(c)} title="Editar"><Pencil className="size-4" /></Button>
+                  <Button variant="ghost" size="icon" className="size-8 text-destructive" onClick={() => void deleteContact(c)} title="Eliminar"><Trash2 className="size-4" /></Button>
                 </div>
               </div>
             ))}
@@ -366,25 +410,37 @@ export default function ContactsPage() {
       {/* Edit dialog */}
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent showCloseButton className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Edit contact</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Editar contacto</DialogTitle></DialogHeader>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="c-name">Saved name</Label>
-              <Input id="c-name" value={draft.savedName} maxLength={100} placeholder={editing?.whatsappName ?? editing?.phone ?? "Name"} onChange={(e) => setDraft((d) => ({ ...d, savedName: e.target.value }))} autoFocus />
+              <Label htmlFor="c-name">Nombre guardado</Label>
+              <Input id="c-name" value={draft.savedName} maxLength={100} placeholder={editing?.whatsappName ?? editing?.phone ?? "Nombre"} onChange={(e) => setDraft((d) => ({ ...d, savedName: e.target.value }))} autoFocus />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>Tags</Label>
+              <Label>Calificación del cliente</Label>
+              <div className="flex items-center gap-2">
+                <StarRating value={Math.round(editAgg.avg ?? 0)} readOnly size={20} color={ratingColor(editAgg.avg)} />
+                <span className="text-sm font-semibold" style={editAgg.avg ? { color: ratingColor(editAgg.avg) } : undefined}>{editAgg.avg ? editAgg.avg.toFixed(1) : "—"}</span>
+                <span className="text-[11px] text-muted-foreground">{editAgg.count > 0 ? `${editAgg.count} calificaci${editAgg.count === 1 ? "ón" : "ones"}` : "Sin calificaciones"}</span>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-xs text-muted-foreground">Tu calificación:</span>
+                <StarRating value={draft.rating} size={22} onChange={(r) => { if (editing) void saveMyRating(editing.id, r) }} />
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Etiquetas</Label>
               <TagEditor tags={draft.tags} onChange={(tags) => setDraft((d) => ({ ...d, tags }))} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="c-notes">Notes</Label>
-              <textarea id="c-notes" value={draft.notes} maxLength={2000} rows={3} placeholder="Anything to remember about this contact…"
+              <Label htmlFor="c-notes">Notas</Label>
+              <textarea id="c-notes" value={draft.notes} maxLength={2000} rows={3} placeholder="Cualquier cosa que quieras recordar de este contacto…"
                 onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
                 className="rounded-md border border-input bg-transparent p-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring" />
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={() => void saveEdit()} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+            <Button onClick={() => void saveEdit()} disabled={saving}>{saving ? "Guardando…" : "Guardar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -392,23 +448,23 @@ export default function ContactsPage() {
       {/* Add dialog */}
       <Dialog open={adding} onOpenChange={(o) => !o && setAdding(false)}>
         <DialogContent showCloseButton className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Add contact</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Agregar contacto</DialogTitle></DialogHeader>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="a-phone">Phone (with country code)</Label>
-              <Input id="a-phone" value={addDraft.phone} placeholder="e.g. 923001234567" onChange={(e) => setAddDraft((d) => ({ ...d, phone: e.target.value }))} autoFocus />
+              <Label htmlFor="a-phone">Teléfono (con código de país)</Label>
+              <Input id="a-phone" value={addDraft.phone} placeholder="ej. 593991234567" onChange={(e) => setAddDraft((d) => ({ ...d, phone: e.target.value }))} autoFocus />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="a-name">Name (optional)</Label>
+              <Label htmlFor="a-name">Nombre (opcional)</Label>
               <Input id="a-name" value={addDraft.savedName} maxLength={100} onChange={(e) => setAddDraft((d) => ({ ...d, savedName: e.target.value }))} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>Tags</Label>
+              <Label>Etiquetas</Label>
               <TagEditor tags={addDraft.tags} onChange={(tags) => setAddDraft((d) => ({ ...d, tags }))} />
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={() => void addContact()} disabled={addBusy}>{addBusy ? "Adding…" : "Add contact"}</Button>
+            <Button onClick={() => void addContact()} disabled={addBusy}>{addBusy ? "Agregando…" : "Agregar contacto"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -416,10 +472,10 @@ export default function ContactsPage() {
       {/* Bulk tag dialog */}
       <Dialog open={!!bulkTag} onOpenChange={(o) => !o && setBulkTag(null)}>
         <DialogContent showCloseButton className="sm:max-w-sm">
-          <DialogHeader><DialogTitle>{bulkTag?.mode === "addTag" ? "Add tag to" : "Remove tag from"} {selCount} contact{selCount === 1 ? "" : "s"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{bulkTag?.mode === "addTag" ? "Agregar etiqueta a" : "Quitar etiqueta de"} {selCount} contacto{selCount === 1 ? "" : "s"}</DialogTitle></DialogHeader>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="bulk-tag">Tag</Label>
-            <Input id="bulk-tag" value={bulkTag?.tag ?? ""} maxLength={30} placeholder="e.g. Lead" autoFocus
+            <Label htmlFor="bulk-tag">Etiqueta</Label>
+            <Input id="bulk-tag" value={bulkTag?.tag ?? ""} maxLength={30} placeholder="ej. Prospecto" autoFocus
               onChange={(e) => setBulkTag((b) => b && ({ ...b, tag: e.target.value }))}
               onKeyDown={(e) => { if (e.key === "Enter" && bulkTag?.tag.trim()) void runBulk(bulkTag.mode, bulkTag.tag.trim()) }} />
             {bulkTag?.mode === "addTag" && allTags.length > 0 && (
@@ -430,7 +486,7 @@ export default function ContactsPage() {
           </div>
           <DialogFooter>
             <Button disabled={!bulkTag?.tag.trim()} onClick={() => bulkTag && void runBulk(bulkTag.mode, bulkTag.tag.trim())}>
-              <Check className="mr-1.5 size-4" />{bulkTag?.mode === "addTag" ? "Add tag" : "Remove tag"}
+              <Check className="mr-1.5 size-4" />{bulkTag?.mode === "addTag" ? "Agregar etiqueta" : "Quitar etiqueta"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -439,13 +495,13 @@ export default function ContactsPage() {
       {/* Import preview dialog */}
       <Dialog open={!!importPreview} onOpenChange={(o) => !o && setImportPreview(null)}>
         <DialogContent showCloseButton className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Import contacts</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Importar contactos</DialogTitle></DialogHeader>
           <div className="flex flex-col gap-3 text-sm">
-            <p className="text-muted-foreground">From <span className="font-medium text-foreground">{importPreview?.fileName}</span></p>
+            <p className="text-muted-foreground">Desde <span className="font-medium text-foreground">{importPreview?.fileName}</span></p>
             <div className="rounded-lg border bg-muted/30 p-3">
-              <p><strong>{importPreview?.rows.length ?? 0}</strong> contact{(importPreview?.rows.length ?? 0) === 1 ? "" : "s"} ready to import.</p>
-              {!!importPreview?.invalid && <p className="mt-0.5 text-xs text-muted-foreground">{importPreview.invalid} row{importPreview.invalid === 1 ? "" : "s"} skipped — no valid phone number.</p>}
-              <p className="mt-0.5 text-xs text-muted-foreground">Numbers already in your book are skipped automatically.</p>
+              <p><strong>{importPreview?.rows.length ?? 0}</strong> contacto{(importPreview?.rows.length ?? 0) === 1 ? "" : "s"} listo{(importPreview?.rows.length ?? 0) === 1 ? "" : "s"} para importar.</p>
+              {!!importPreview?.invalid && <p className="mt-0.5 text-xs text-muted-foreground">{importPreview.invalid} fila{importPreview.invalid === 1 ? "" : "s"} omitida{importPreview.invalid === 1 ? "" : "s"} — sin número de teléfono válido.</p>}
+              <p className="mt-0.5 text-xs text-muted-foreground">Los números que ya están en tu libreta se omiten automáticamente.</p>
             </div>
             <div className="max-h-40 divide-y overflow-auto rounded-md border text-xs">
               {importPreview?.rows.slice(0, 5).map((r, i) => (
@@ -455,13 +511,13 @@ export default function ContactsPage() {
                 </div>
               ))}
               {(importPreview?.rows.length ?? 0) > 5 && (
-                <div className="px-2.5 py-1.5 text-muted-foreground">+{(importPreview?.rows.length ?? 0) - 5} more…</div>
+                <div className="px-2.5 py-1.5 text-muted-foreground">+{(importPreview?.rows.length ?? 0) - 5} más…</div>
               )}
             </div>
           </div>
           <DialogFooter>
             <Button onClick={() => void runImport()} disabled={importing}>
-              {importing ? "Importing…" : `Import ${importPreview?.rows.length ?? 0}`}
+              {importing ? "Importando…" : `Importar ${importPreview?.rows.length ?? 0}`}
             </Button>
           </DialogFooter>
         </DialogContent>

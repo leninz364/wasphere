@@ -18,20 +18,20 @@ export const MESSAGE_TYPES = [
 export type MessageType = (typeof MESSAGE_TYPES)[number]
 
 export const MESSAGE_TYPE_LABELS: Record<MessageType, string> = {
-  text: "Text",
-  image: "Image",
+  text: "Texto",
+  image: "Imagen",
   video: "Video",
   audio: "Audio",
-  document: "Document",
+  document: "Documento",
   sticker: "Sticker",
   gif: "GIF",
-  location: "Location",
-  contact: "Contact",
-  buttons: "Buttons",
-  list: "List",
-  poll: "Poll",
-  reaction: "Reaction",
-  "view-once": "View Once",
+  location: "Ubicación",
+  contact: "Contacto",
+  buttons: "Botones",
+  list: "Lista",
+  poll: "Encuesta",
+  reaction: "Reacción",
+  "view-once": "Ver una vez",
 }
 
 export const TYPE_ROW_1: MessageType[] = [

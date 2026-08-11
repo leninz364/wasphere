@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, MaxLength, Matches, IsInt, Min, Max, IsBoolean, IsIn } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, MaxLength, Matches, IsInt, Min, Max, IsBoolean, IsIn, ValidateIf } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateSessionDto {
@@ -92,13 +92,15 @@ export class CreateSessionDto {
   // ── Meta Cloud API credentials (required when provider = 'meta') ──────────
 
   @ApiPropertyOptional({ description: 'Meta WhatsApp Phone Number ID (provider=meta).' })
-  @IsOptional()
+  @ValidateIf((o: CreateSessionDto) => o.provider === 'meta')
+  @IsNotEmpty()
   @IsString()
   @MaxLength(64)
   metaPhoneNumberId?: string;
 
   @ApiPropertyOptional({ description: 'Meta permanent access token (provider=meta).' })
-  @IsOptional()
+  @ValidateIf((o: CreateSessionDto) => o.provider === 'meta')
+  @IsNotEmpty()
   @IsString()
   @MaxLength(1024)
   metaAccessToken?: string;
@@ -110,13 +112,15 @@ export class CreateSessionDto {
   metaWabaId?: string;
 
   @ApiPropertyOptional({ description: 'Webhook verify token you choose (provider=meta).' })
-  @IsOptional()
+  @ValidateIf((o: CreateSessionDto) => o.provider === 'meta')
+  @IsNotEmpty()
   @IsString()
   @MaxLength(256)
   metaVerifyToken?: string;
 
-  @ApiPropertyOptional({ description: 'Meta app secret for webhook signature verification (provider=meta; required in production).' })
-  @IsOptional()
+  @ApiPropertyOptional({ description: 'Meta app secret for webhook signature verification (required when provider=meta).' })
+  @ValidateIf((o: CreateSessionDto) => o.provider === 'meta')
+  @IsNotEmpty()
   @IsString()
   @MaxLength(256)
   metaAppSecret?: string;

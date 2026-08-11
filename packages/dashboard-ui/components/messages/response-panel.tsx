@@ -71,7 +71,7 @@ function CopyButton({
       className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
     >
       {copied ? <Check size={11} /> : <Copy size={11} />}
-      {copied ? "Copied" : label}
+      {copied ? "Copiado" : label}
     </Button>
   )
 }
@@ -123,7 +123,7 @@ export function ResponsePanel({
       <CardHeader className="px-4 py-3 border-b border-border/60 flex-row items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Terminal size={14} className="text-muted-foreground" />
-          <span className="text-sm font-semibold text-foreground">API Response</span>
+          <span className="text-sm font-semibold text-foreground">Respuesta de la API</span>
         </div>
         {state === "success" && (
           <div className="flex items-center gap-1.5 text-xs font-medium text-green-600 dark:text-green-400">
@@ -149,7 +149,7 @@ export function ResponsePanel({
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
               <Terminal size={18} className="text-muted-foreground/50" />
             </div>
-            <p className="text-sm text-muted-foreground">Send a message to see the response</p>
+            <p className="text-sm text-muted-foreground">Envía un mensaje para ver la respuesta</p>
           </div>
         )}
 
@@ -157,8 +157,8 @@ export function ResponsePanel({
         {request && (
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">Request</span>
-              <CopyButton onClick={copyCurl} copied={copiedCurl} label="Copy as curl" />
+              <span className="text-xs font-medium text-muted-foreground">Solicitud</span>
+              <CopyButton onClick={copyCurl} copied={copiedCurl} label="Copiar como curl" />
             </div>
             <pre className="bg-zinc-950 text-zinc-100 rounded-lg p-3 overflow-auto text-xs font-mono max-h-40 whitespace-pre-wrap break-all leading-relaxed">
               <span className="text-blue-400">{request.method}</span>{" "}
@@ -173,7 +173,7 @@ export function ResponsePanel({
           <div className="flex items-center justify-center py-8">
             <div className="flex flex-col items-center gap-2">
               <div className="size-6 animate-spin rounded-full border-2 border-muted border-t-primary" />
-              <p className="text-xs text-muted-foreground">Sending…</p>
+              <p className="text-xs text-muted-foreground">Enviando…</p>
             </div>
           </div>
         )}
@@ -189,14 +189,14 @@ export function ResponsePanel({
                   getStatusBadgeClass(statusCode)
                 )}
               >
-                {statusCode ?? "Network Error"}
+                {statusCode ?? "Error de red"}
               </span>
             </div>
 
             {/* Message ID */}
             {messageId && (
               <div className="flex flex-col gap-1">
-                <p className="text-xs font-medium text-muted-foreground">Message ID</p>
+                <p className="text-xs font-medium text-muted-foreground">ID del mensaje</p>
                 <div className="flex items-center gap-2">
                   <code className="text-xs font-mono bg-muted rounded-md px-2 py-1.5 flex-1 break-all text-foreground/80">
                     {messageId}
@@ -217,8 +217,8 @@ export function ResponsePanel({
             {/* Response body */}
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">Response</span>
-                <CopyButton onClick={copyResponse} copied={copied} label="Copy" />
+                <span className="text-xs font-medium text-muted-foreground">Respuesta</span>
+                <CopyButton onClick={copyResponse} copied={copied} label="Copiar" />
               </div>
               <pre className="bg-zinc-950 text-zinc-100 rounded-lg p-3 overflow-auto text-xs font-mono max-h-64 whitespace-pre-wrap break-all leading-relaxed">
                 {JSON.stringify(data, null, 2)}

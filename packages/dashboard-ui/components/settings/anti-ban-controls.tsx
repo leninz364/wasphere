@@ -79,7 +79,7 @@ export function AntiBanControls({ sessions }: AntiBanControlsProps) {
     try {
       const res = await fetch(`/api/sessions/${sessionId}`)
       if (!res.ok) {
-        toast.error("Failed to load session config.")
+        toast.error("No se pudo cargar la configuración de la sesión.")
         return
       }
       const data = await res.json()
@@ -94,7 +94,7 @@ export function AntiBanControls({ sessions }: AntiBanControlsProps) {
       setOriginal(fs)
       setForm(fs)
     } catch {
-      toast.error("Could not reach the server.")
+      toast.error("No se pudo comunicar con el servidor.")
     } finally {
       setLoading(false)
     }
@@ -102,7 +102,7 @@ export function AntiBanControls({ sessions }: AntiBanControlsProps) {
 
   function handleSessionChange(value: string) {
     if (isDirty) {
-      const ok = window.confirm("Unsaved changes will be lost. Continue?")
+      const ok = window.confirm("Los cambios sin guardar se perderán. ¿Continuar?")
       if (!ok) return
     }
     setSelectedId(value)
@@ -123,7 +123,7 @@ export function AntiBanControls({ sessions }: AntiBanControlsProps) {
     if (!form || !selectedId) return
 
     if (form.random_delay_max_ms < form.random_delay_min_ms) {
-      setDelayError("Max delay must be ≥ min delay")
+      setDelayError("El retraso máximo debe ser ≥ retraso mínimo")
       return
     }
 
@@ -139,16 +139,16 @@ export function AntiBanControls({ sessions }: AntiBanControlsProps) {
       if (!res.ok) {
         const msg: string = Array.isArray(data.message)
           ? data.message.join(" ")
-          : (data.message ?? "Failed to save settings.")
+          : (data.message ?? "No se pudieron guardar los ajustes.")
         toast.error(msg)
         return
       }
       toast.success(
-        "Anti-ban settings saved. Applied immediately — no restart needed."
+        "Ajustes anti-ban guardados. Se aplicaron inmediatamente — no es necesario reiniciar."
       )
       setOriginal(form)
     } catch {
-      toast.error("Could not reach the server.")
+      toast.error("No se pudo comunicar con el servidor.")
     } finally {
       setSubmitting(false)
     }
@@ -161,18 +161,18 @@ export function AntiBanControls({ sessions }: AntiBanControlsProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Per-Session Anti-Ban Controls</CardTitle>
+        <CardTitle className="text-base">Controles anti-ban por sesión</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         {/* Session selector */}
         <div className="flex flex-col gap-1.5">
-          <Label>Session</Label>
+          <Label>Sesión</Label>
           <Select
             value={selectedId ?? ""}
             onValueChange={(v) => { if (v) handleSessionChange(v) }}
           >
             <SelectTrigger className="w-full max-w-sm">
-              <SelectValue placeholder="Select a session to configure" />
+              <SelectValue placeholder="Selecciona una sesión para configurar" />
             </SelectTrigger>
             <SelectContent>
               {sessions.map((session) => (
@@ -201,7 +201,7 @@ export function AntiBanControls({ sessions }: AntiBanControlsProps) {
         {/* Empty state — no sessions to configure yet */}
         {sessions.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            No sessions yet — create a session first, and its anti-ban controls will appear here.
+            Sin sesiones aún — crea una sesión primero, y sus controles anti-ban aparecerán aquí.
           </p>
         )}
 
@@ -252,17 +252,17 @@ export function AntiBanControls({ sessions }: AntiBanControlsProps) {
             {/* Field 1 — Random Delay */}
             <div className="flex flex-col gap-2">
               <div>
-                <Label>Random Send Delay</Label>
+                <Label>Retraso aleatorio de envío</Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Adds a human-like random pause before each message so sends
-                  don&apos;t look automated. 0 = disabled. New sessions default to
-                  4000–12000ms; raise it for heavier anti-ban safety.
+                  Agrega una pausa aleatoria similar a la humana antes de cada mensaje para que los envíos
+                  no parezcan automatizados. 0 = deshabilitado. Las nuevas sesiones tienen por defecto
+                  4000–12000ms; aumenta para mayor seguridad anti-ban.
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-4 max-w-sm">
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="delay-min" className="text-xs font-normal">
-                    Min Delay (ms)
+                    Retraso mín (ms)
                   </Label>
                   <Input
                     id="delay-min"
@@ -278,7 +278,7 @@ export function AntiBanControls({ sessions }: AntiBanControlsProps) {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="delay-max" className="text-xs font-normal">
-                    Max Delay (ms)
+                    Retraso máx (ms)
                   </Label>
                   <Input
                     id="delay-max"
@@ -298,8 +298,8 @@ export function AntiBanControls({ sessions }: AntiBanControlsProps) {
               )}
               {showDelayPreview && !delayError && (
                 <p className="text-xs text-muted-foreground">
-                  Each message will pause randomly between{" "}
-                  {msToSeconds(form.random_delay_min_ms)} and{" "}
+                  Cada mensaje hará una pausa aleatoria entre{" "}
+                  {msToSeconds(form.random_delay_min_ms)} y{" "}
                   {msToSeconds(form.random_delay_max_ms)}
                 </p>
               )}
@@ -308,11 +308,11 @@ export function AntiBanControls({ sessions }: AntiBanControlsProps) {
             {/* Field — Per-Minute Message Limit */}
             <div className="flex flex-col gap-2">
               <div>
-                <Label htmlFor="max-per-min">Per-Minute Message Limit</Label>
+                <Label htmlFor="max-per-min">Límite de mensajes por minuto</Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Caps how many messages this session sends per minute. 0 = unlimited.
-                  The server automatically paces sends so this rate is never exceeded —
-                  a strong anti-ban guard for bulk sending.
+                  Limita cuántos mensajes envía esta sesión por minuto. 0 = ilimitado.
+                  El servidor ajusta automáticamente los envíos para que esta velocidad nunca se exceda —
+                  una fuerte protección anti-ban para envíos masivos.
                 </p>
               </div>
               <div className="max-w-sm">
@@ -330,8 +330,8 @@ export function AntiBanControls({ sessions }: AntiBanControlsProps) {
               </div>
               {form.max_messages_per_minute > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Up to {form.max_messages_per_minute} messages/min
-                  {" "}(≈ {form.max_messages_per_minute * 60} per hour max).
+                  Hasta {form.max_messages_per_minute} mensajes/min
+                  {" "}(≈ {form.max_messages_per_minute * 60} máximo por hora).
                 </p>
               )}
             </div>
@@ -345,12 +345,12 @@ export function AntiBanControls({ sessions }: AntiBanControlsProps) {
                   onCheckedChange={(v) => setField("auto_read_on_receive", v)}
                 />
                 <Label htmlFor="auto-read" className="cursor-pointer">
-                  Auto-Read Incoming Messages
+                  Leer automáticamente mensajes entrantes
                 </Label>
               </div>
               <p className="text-xs text-muted-foreground ml-0">
-                Marks messages as read automatically. Recipients see double blue
-                ticks.
+                Marca los mensajes como leídos automáticamente. Los receptores ven
+                las dos marcas azules.
               </p>
             </div>
 
@@ -363,17 +363,17 @@ export function AntiBanControls({ sessions }: AntiBanControlsProps) {
                   onCheckedChange={(v) => setField("receive_enabled", v)}
                 />
                 <Label htmlFor="receive-enabled" className="cursor-pointer">
-                  Enable Message Reception
+                  Habilitar recepción de mensajes
                 </Label>
               </div>
               <p className="text-xs text-muted-foreground">
-                When off, incoming messages are ignored and webhooks won&apos;t
-                fire.
+                Cuando está deshabilitado, los mensajes entrantes se ignoran y los webhooks no
+                se disparan.
               </p>
               {!form.receive_enabled && (
                 <div className="rounded-md border border-amber-400 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-                  Webhooks will NOT fire for incoming messages while this is
-                  disabled.
+                  Los webhooks NO se dispararán para mensajes entrantes mientras esto esté
+                  deshabilitado.
                 </div>
               )}
             </div>
@@ -384,7 +384,7 @@ export function AntiBanControls({ sessions }: AntiBanControlsProps) {
                 onClick={handleSave}
                 disabled={!isDirty || submitting}
               >
-                {submitting ? "Saving…" : "Save Anti-Ban Settings"}
+                {submitting ? "Guardando…" : "Guardar ajustes anti-ban"}
               </Button>
             </div>
           </div>

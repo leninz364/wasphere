@@ -97,8 +97,21 @@ export class ApiKeysService {
         keyHash: hash,
         permissions: dto.permissions,
         sessionId: dto.sessionId ?? null,
-        expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+        isActive: true,
+        expiresAt: null,
       },
+    });
+
+    // If an agent webhook with the same name was created from the generic
+    // Webhooks tab, connect it to this key instead of leaving the two records
+    // related only by their display name.
+    await this.prisma.webhook.updateMany({
+      where: {
+        workspaceId,
+        apiKeyId: null,
+        name: { equals: dto.name, mode: 'insensitive' },
+      },
+      data: { apiKeyId: key.id },
     });
 
     await this.prisma.auditLog.create({
@@ -141,9 +154,11 @@ export class ApiKeysService {
       data: {
         ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.permissions !== undefined && { permissions: dto.permissions }),
-        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
         ...('sessionId' in dto && { sessionId: dto.sessionId }),
-        ...('expiresAt' in dto && { expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null }),
+        // API keys are permanent. Legacy inactive/expiring rows are repaired
+        // whenever their editable metadata is updated.
+        isActive: true,
+        expiresAt: null,
       },
       select: {
         id: true,
@@ -157,12 +172,6 @@ export class ApiKeysService {
         expiresAt: true,
       },
     });
-
-    if (dto.isActive === false) {
-      await this.prisma.auditLog.create({
-        data: { method: 'PATCH', endpoint: 'api_key.deactivated', actorTokenPrefix: existing.keyPrefix },
-      });
-    }
 
     return updated;
   }
@@ -179,24 +188,54 @@ export class ApiKeysService {
     const prefix = this.keyPrefix(raw);
     const hash = await argon2.hash(raw, ARGON2_OPTIONS);
 
-    const updated = await this.prisma.apiKey.update({
-      where: { id: keyId },
-      data: { keyPrefix: prefix, keyHash: hash },
+    // "Rotate" is intentionally additive: the existing secret remains valid
+    // until its own row is explicitly deleted.
+    const created = await this.prisma.apiKey.create({
+      data: {
+        workspaceId,
+        createdById: userId,
+        name: existing.name,
+        keyPrefix: prefix,
+        keyHash: hash,
+        permissions: existing.permissions as string[],
+        sessionId: existing.sessionId,
+        isActive: true,
+        expiresAt: null,
+      },
+    });
+
+    // "Create additional key" is also available from the generic API Keys tab.
+    // Move every agent webhook linked to the previous key (and legacy
+    // same-name unlinked webhooks) to the newly issued credential.
+    await this.prisma.webhook.updateMany({
+      where: {
+        workspaceId,
+        OR: [
+          { apiKeyId: existing.id },
+          {
+            apiKeyId: null,
+            name: { equals: existing.name, mode: 'insensitive' },
+          },
+        ],
+      },
+      data: { apiKeyId: created.id },
     });
 
     await this.prisma.auditLog.create({
-      data: { method: 'POST', endpoint: 'api_key.rotated', actorTokenPrefix: prefix },
+      data: { method: 'POST', endpoint: 'api_key.additional_created', actorTokenPrefix: prefix },
     });
 
     return {
-      id: updated.id,
+      id: created.id,
       key: raw,
       keyPrefix: prefix,
-      name: updated.name,
-      permissions: updated.permissions,
-      sessionId: updated.sessionId,
-      isActive: updated.isActive,
-      expiresAt: updated.expiresAt,
+      name: created.name,
+      permissions: created.permissions,
+      sessionId: created.sessionId,
+      isActive: created.isActive,
+      createdAt: created.createdAt,
+      lastUsedAt: created.lastUsedAt,
+      expiresAt: created.expiresAt,
     };
   }
 
@@ -217,6 +256,16 @@ export class ApiKeysService {
     return { success: true };
   }
 
+  async verifySecret(userId: string, workspaceId: string, keyId: string, token: string) {
+    await this.requireMembership(userId, workspaceId);
+    const key = await this.prisma.apiKey.findFirst({
+      where: { id: keyId, workspaceId },
+      select: { keyHash: true },
+    });
+    if (!key) throw new NotFoundException('API key not found');
+    return { valid: await argon2.verify(key.keyHash, token, ARGON2_OPTIONS) };
+  }
+
   async validateApiKey(token: string): Promise<ApiKeyUser | null> {
     if (!token.startsWith('wsk_') || token.length < 17) return null;
 
@@ -226,8 +275,7 @@ export class ApiKeysService {
       include: { workspace: { select: { ownerId: true } } },
     });
 
-    if (!key || !key.isActive) return null;
-    if (key.expiresAt && key.expiresAt < new Date()) return null;
+    if (!key) return null;
 
     const valid = await argon2.verify(key.keyHash, token, ARGON2_OPTIONS);
     if (!valid) return null;

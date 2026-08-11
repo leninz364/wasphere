@@ -19,13 +19,13 @@ export function ImageForm({ onSubmit, submitting }: FormProps) {
 
   const fillSample = () => {
     setUrl(SAMPLE_IMAGE_URL)
-    setCaption("Sample image via WaSphere")
+    setCaption("Imagen de ejemplo vía BChat")
     setError("")
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!url.trim()) { setError("Image URL or file is required."); return }
+    if (!url.trim()) { setError("Se requiere una URL o archivo de imagen."); return }
     setError("")
     const body: Record<string, unknown> = { url: url.trim() }
     if (caption.trim()) body.caption = caption.trim()
@@ -35,25 +35,25 @@ export function ImageForm({ onSubmit, submitting }: FormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="flex items-center justify-between pb-1">
-        <span className="text-xs text-muted-foreground">Fill in the fields below</span>
+        <span className="text-xs text-muted-foreground">Completa los campos a continuación</span>
         <Button type="button" size="xs" variant="outline" onClick={fillSample}>
-          Fill Sample
+          Rellenar ejemplo
         </Button>
       </div>
       <MediaInput
-        id="image-url" label="Image" value={url} onChange={setUrl}
+        id="image-url" label="Imagen" value={url} onChange={setUrl}
         accept="image/jpeg,image/png,image/webp,image/gif"
         urlPlaceholder="https://example.com/image.jpg" error={error}
       />
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="image-caption">
-          Caption <span className="text-muted-foreground font-normal">(optional)</span>
+          Descripción <span className="text-muted-foreground font-normal">(opcional)</span>
         </Label>
-        <Textarea id="image-caption" placeholder="Image caption…" value={caption}
+        <Textarea id="image-caption" placeholder="Descripción de la imagen…" value={caption}
           onChange={(e) => setCaption(e.target.value)} maxLength={1024} rows={2} />
       </div>
       <Button type="submit" disabled={submitting} className="w-full">
-        {submitting ? "Sending…" : "Send Message"}
+        {submitting ? "Enviando…" : "Enviar mensaje"}
       </Button>
     </form>
   )
